@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panda Dailies</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+    
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.5.0/knockout-min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    
+    <style>
+        .animate-flash { animation: flash 1s infinite; }
+        @keyframes flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .speaker-card { transition: all 0.3s ease; }
+    </style>
+    <script src="./app.js"></script>
+    <script>
+        (function() {
+            const theme = localStorage.getItem('solutions:pandadailies:theme') || 'dark';
+            document.documentElement.setAttribute('data-bs-theme', theme);
+        })();
+    </script>
+</head>
+<body data-bind="attr: { 'data-bs-theme': theme }">
+    <!-- HEADER -->
+    <header>
+        <nav class="navbar navbar-expand-lg mb-4 shadow-sm" data-bind="css: { 'navbar-dark bg-dark': isDarkMode(), 'navbar-light border-bottom': !isDarkMode() }">
+            <div class="container">
+                <a class="navbar-brand fw-bold" href="#">🐼 Panda Dailies</a>
+                <div class="d-flex align-items-center">
+                    <div class="form-check form-switch me-3">
+                        <input class="form-check-input" type="checkbox" id="themeSwitchNav" data-bind="checked: isDarkMode">
+                        <label class="form-check-label" for="themeSwitchNav"><i data-bind="css: isDarkMode() ? 'bi-moon-stars-fill' : 'bi-sun-fill'"></i></label>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" data-bind="click: logout">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </button>
+                    </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- CONTENT -->
+    <main class="container pb-5">
+        <!-- LOGIN -->
+        <div data-bind="visible: meetingState() === 'login'" class="card shadow-sm mx-auto" style="max-width: 400px;">
+            <div class="card-header"><h5 class="mb-0">Solutions Login</h5></div>
+            <form data-bind="submit: login">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input data-bind="value: email, attr: { disabled: loading }" type="email" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input data-bind="value: pass, attr: { disabled: loading }" type="password" class="form-control" required>
+                    </div>
+                    <button data-bind="attr: { disabled: loading }" type="submit" class="btn btn-primary w-100">Login</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- DAILY CONFIGURATION -->
+        <div data-bind="visible: meetingState() === 'setup'" style="display: none;">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header"><h5>Configure Daily Stand-up</h5></div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Select Project</label>
+                            <select class="form-select" data-bind="
+                                options: projects, 
+                                optionsText: 'name', 
+                                value: selectedProject, 
+                                optionsCaption: 'Choose...'">
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Duration Per Person</label>
+                            <div class="input-group">
+                                <button class="btn btn-outline-secondary" type="button" data-bind="click: updateDurationPerPerson.bind($data, -60), attr: { disabled: $root.loading() }">
+                                    <span class="d-none d-sm-inline">-1m</span>
+                                    <span class="d-inline d-sm-none">-</span>
+                                </button>
+                                <input id="durationPerPerson" type="text" class="form-control text-center fw-bold" data-bind="value: durationPerPerson, attr: { disabled: $root.loading() }">
+                                <button class="btn btn-outline-secondary" type="button" data-bind="click: updateDurationPerPerson.bind($data, 60), attr: { disabled: $root.loading() }">
+                                    <span class="d-none d-sm-inline">+1m</span>
+                                    <span class="d-inline d-sm-none">+</span>
+                                </button>
+                            </div>
+                       </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Participants</label>
+                        <div class="row g-2" data-bind="foreach: availableParticipants">
+                            <div class="col-md-4 col-sm-6">
+                                <div class="form-check form-switch p-2 border rounded">
+                                    <input class="form-check-input ms-1 me-2" type="checkbox" data-bind="checkedValue: $data, checked: $root.selectedParticipants, attr: { id: 'part-' + id }">
+                                    <label class="form-check-label" data-bind="text: name, attr: { for: 'part-' + id }"></label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <button class="btn btn-success btn-md" data-bind="click: startMeeting, attr: { disabled: selectedParticipants().length === 0 }">
+                            <i class="bi bi-play-circle me-2"></i>Start Daily
+                        </button>
+                    </div>
+                    </div>
+            </div>
+        </div>
+
+        <div data-bind="visible: meetingState() === 'active'" style="display: none;">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card shadow-sm mb-3 border-primary speaker-card">
+                        <div class="card-body text-center py-5">
+                            <h2 class="text-muted mb-1">Speaking Now</h2>
+                            <h1 class="display-3 fw-bold text-primary mb-4" data-bind="text: activeSpeaker() ? activeSpeaker().name : 'Finished!'"></h1>
+                            
+                            <div class="display-1 fw-bold mb-4" data-bind="text: timerDisplay, css: timerColorClass" style="font-variant-numeric: tabular-nums;"></div>
+                            
+                            <div class="btn-group btn-group-lg" role="group">
+                                <button class="btn" data-bind="click: toggleTimer, css: isTimerRunning() ? 'btn-warning' : 'btn-success', text: isTimerRunning() ? 'Pause' : 'Resume'"></button>
+                                <button class="btn btn-primary" data-bind="click: nextSpeaker">Next Person <i class="bi bi-arrow-right"></i></button>
+                            </div>
+                            <div class="mt-3">
+                                <button class="btn btn-sm btn-outline-secondary me-2" data-bind="click: skipSpeaker" title="Push to end of queue">Skip for Now</button>
+                                <button class="btn btn-sm btn-outline-danger" data-bind="click: markAbsent" title="Remove from today's daily">Mark Absent</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">Current Tasks (<span data-bind="text: activeSpeaker() ? activeSpeaker().name : ''"></span>)</h6>
+                        </div>
+                        <ul class="list-group list-group-flush" data-bind="foreach: activeTasks">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div class="me-auto pe-3">
+                                    <div class="mb-1">
+                                        <span class="badge border me-2 font-monospace" data-bind="text: '#' + number"></span>
+                                        <strong data-bind="text: title"></strong>
+                                    </div>
+                                    <small class="text-muted fw-semibold">
+                                        <i class="bi" data-bind="css: { 'bi-person-workspace text-primary': relation === 'Assignee', 'bi-search text-warning': relation === 'Reviewer' }"></i> 
+                                        <span data-bind="text: relation"></span>
+                                    </small>
+                                </div>
+                                
+                                <div class="text-end">
+                                    <span class="badge me-1 mb-1" data-bind="text: type, css: { 
+                                        'bg-info': type === 'feature', 
+                                        'bg-danger': type === 'hotfix', 
+                                        'bg-warning text-dark': type === 'bug',
+                                        'bg-secondary': !['feature', 'hotfix', 'bug'].includes(type) 
+                                    }"></span><br>
+                                    <span class="badge bg-secondary text-capitalize" data-bind="text: status.replace(/([A-Z])/g, ' $1').trim()"></span>
+                                </div>
+                            </li>
+                        </ul>
+                        <div class="card-body text-muted text-center py-4">No active tasks found for this sprint.</div>
+                        </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card shadow-sm mb-3">
+                        <div class="card-header"><h6 class="mb-0">Up Next</h6></div>
+                        <ul class="list-group list-group-flush" data-bind="foreach: queue">
+                            <li class="list-group-item" data-bind="text: name, css: { 'fw-bold text-success': $index() === 0 }"></li>
+                        </ul>
+                    </div>
+
+                    <div class="card shadow-sm border-warning">
+                        <div class="card-header bg-warning-subtle"><h6 class="mb-0">🚗 Parking Lot & Notes</h6></div>
+                        <div class="card-body">
+                            <textarea class="form-control mb-2" rows="3" placeholder="Type a blocker or discussion topic..." data-bind="value: currentNoteInput"></textarea>
+                            <button class="btn btn-sm btn-warning w-100" data-bind="click: addNote">Add Note</button>
+                            <hr>
+                            <ul class="list-unstyled small mb-0" data-bind="foreach: parkingLot">
+                                <li class="mb-1"><i class="bi bi-caret-right-fill text-warning"></i> <span data-bind="text: text"></span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div data-bind="visible: meetingState() === 'summary'" style="display: none;">
+            <div class="card shadow-sm border-success">
+                <div class="card-header bg-success text-white"><h5>🎉 Daily Complete!</h5></div>
+                <div class="card-body">
+                    <textarea class="form-control mb-3 font-monospace" rows="10" readonly data-bind="value: markdownSummary"></textarea>
+                    <div class="d-flex justify-content-between">
+                        <button class="btn btn-outline-secondary" data-bind="click: resetMeeting">Start New Meeting</button>
+                        <button class="btn btn-success" data-bind="click: copySummary"><i class="bi bi-clipboard"></i> Copy Markdown</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 11" data-bind="foreach: toasts">
+        <div class="toast show" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto" data-bind="text: title"></strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" data-bind="click: $parent.removeToast"></button>
+            </div>
+            <div class="toast-body" data-bind="text: msg"></div>
+        </div>
+    </div>
+</body>
+</html>
