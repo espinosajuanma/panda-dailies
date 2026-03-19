@@ -64,7 +64,11 @@ class ViewModel {
         this.activeSpeaker = ko.observable(null);
         this.activeTasks = ko.observableArray([]);
         this.parkingLot = ko.observableArray([]);
-        this.currentNoteInput = ko.observable('');
+        this.blockers = ko.observableArray([]);
+        this.actionItems = ko.observableArray([]);
+        this.currentBlockerInput = ko.observable('');
+        this.currentParkingLotInput = ko.observable('');
+        this.currentActionItemInput = ko.observable('');
         
         // Timer Engine
         this.remainingSeconds = ko.observable(0);
@@ -224,6 +228,8 @@ class ViewModel {
         
         this.queue(array);
         this.parkingLot([]);
+        this.actionItems([]);
+        this.blockers([]);
         this.totalMeetingTime(0);
         this.meetingState('active');
         
@@ -335,16 +341,37 @@ class ViewModel {
         }
     }
 
-    // --- NOTES & SUMMARY ---
-    addNote = () => {
-        if(this.currentNoteInput().trim() !== '') {
-            this.addNoteToParkingLot(`**[${this.activeSpeaker() ? this.activeSpeaker().name : 'General'}]**: ${this.currentNoteInput()}`);
-            this.currentNoteInput('');
+    // --- SPLIT NOTES & SUMMARY ---
+    addActionItem = () => {
+        if (this.currentActionItemInput().trim() !== '') {
+            this.addNoteToActionItems(`[${this.activeSpeaker() ? this.activeSpeaker().name : 'General'}]: ${this.currentActionItemInput()}`);
+            this.currentActionItemInput('');
+        }
+    }
+
+    addBlocker = () => {
+        if (this.currentBlockerInput().trim() !== '') {
+            this.addNoteToBlockers(`[${this.activeSpeaker() ? this.activeSpeaker().name : 'General'}]: ${this.currentBlockerInput()}`);
+            this.currentBlockerInput('');
+        }
+    }
+
+    addParkingLotTopic = () => {
+        if (this.currentParkingLotInput().trim() !== '') {
+            this.addNoteToParkingLot(`[${this.activeSpeaker() ? this.activeSpeaker().name : 'General'}]: ${this.currentParkingLotInput()}`);
+            this.currentParkingLotInput('');
         }
     }
 
     addNoteToParkingLot = (text) => {
         this.parkingLot.push({ text });
+    }
+    addNoteToBlockers = (text) => {
+        this.blockers.push({ text });
+    }
+
+    addNoteToActionItems = (text) => {
+        this.actionItems.push({ text });
     }
 
     endMeeting = () => {
@@ -361,17 +388,35 @@ class ViewModel {
         const mins = Math.floor(this.totalMeetingTime() / 60);
         const secs = this.totalMeetingTime() % 60;
         
-        let md = `🐼 **Panda-Dailies Summary:** ${projName}\n`;
-        md += `⏱️ **Total Time:** ${mins}m ${secs}s\n`;
-        md += `👥 **Participants:** ${this.selectedParticipants().map(p => p.name).join(', ')}\n\n`;
+        let md = `🐼 *Panda-Dailies Summary*\n`;
+        md += `💼 *Project Name:* ${projName}\n`;
+        md += `⏱️ *Total Time:* ${mins}m ${secs}s\n`;
+        md += `👥 *Participants:* ${this.selectedParticipants().map(p => p.name).join(', ')}\n\n`;
         
-        md += `🚗 **Parking Lot & Notes:**\n`;
-        if (this.parkingLot().length === 0) {
+
+        if (this.actionItems().length === 0 && this.blockers().length === 0 && this.parkingLot().length === 0) {
             md += `*No notes recorded today.*\n`;
         } else {
-            this.parkingLot().forEach(note => {
-                md += `- ${note.text}\n`;
-            });
+            md += `*Notes:*\n\n`;
+
+            if (this.actionItems().length) {
+                md += `*Action Items:*\n`;
+                this.actionItems().forEach(note => {
+                    md += `- 🗒️ ${note.text}\n`;
+                });
+            }
+            if (this.blockers().length) {
+                md += `*Blockers:*\n`;
+                this.blockers().forEach(note => {
+                    md += `- 🛑 ${note.text}\n`;
+                });
+            }
+            if (this.parkingLot().length) {
+                md += `*Parking Lot:*\n`;
+                this.parkingLot().forEach(note => {
+                    md += `- 🛻 ${note.text}\n`;
+                });
+            }
         }
         this.markdownSummary(md);
     }
