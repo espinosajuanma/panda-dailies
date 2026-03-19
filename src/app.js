@@ -66,6 +66,7 @@ class ViewModel {
         this.parkingLot = ko.observableArray([]);
         this.blockers = ko.observableArray([]);
         this.actionItems = ko.observableArray([]);
+        this.notes = ko.observableArray([]);
         this.currentBlockerInput = ko.observable('');
         this.currentParkingLotInput = ko.observable('');
         this.currentActionItemInput = ko.observable('');
@@ -230,6 +231,7 @@ class ViewModel {
         this.parkingLot([]);
         this.actionItems([]);
         this.blockers([]);
+        this.notes([]);
         this.totalMeetingTime(0);
         this.meetingState('active');
         
@@ -336,7 +338,7 @@ class ViewModel {
 
     markAbsent = () => {
         if (this.activeSpeaker()) {
-            this.addNoteToParkingLot(`*${this.activeSpeaker().name} was absent.*`);
+            this.addNoteToNotes(`${this.activeSpeaker().name} was absent.`);
             this.nextSpeaker();
         }
     }
@@ -363,9 +365,14 @@ class ViewModel {
         }
     }
 
+    addNoteToNotes = (text) => {
+        this.notes.push({ text });
+    }
+
     addNoteToParkingLot = (text) => {
         this.parkingLot.push({ text });
     }
+
     addNoteToBlockers = (text) => {
         this.blockers.push({ text });
     }
@@ -393,8 +400,12 @@ class ViewModel {
         md += `⏱️ *Total Time:* ${mins}m ${secs}s\n`;
         md += `👥 *Participants:* ${this.selectedParticipants().map(p => p.name).join(', ')}\n\n`;
         
-
-        if (this.actionItems().length === 0 && this.blockers().length === 0 && this.parkingLot().length === 0) {
+        let hasActionItems = this.actionItems().length > 0;
+        let hasBlockers = this.blockers().length > 0;
+        let hasParkingLot = this.parkingLot().length > 0;
+        let hasNotes = this.notes().length > 0;
+        
+        if (! hasActionItems && ! hasBlockers && ! hasParkingLot && ! hasNotes) {
             md += `*No notes recorded today.*\n`;
         } else {
             md += `*Notes:*\n\n`;
@@ -415,6 +426,12 @@ class ViewModel {
                 md += `*Parking Lot:*\n`;
                 this.parkingLot().forEach(note => {
                     md += `- 🛻 ${note.text}\n`;
+                });
+            }
+            if (this.notes().length) {
+                md += `*General Notes:*\n`;
+                this.notes().forEach(note => {
+                    md += `- ${note.text}\n`;
                 });
             }
         }
