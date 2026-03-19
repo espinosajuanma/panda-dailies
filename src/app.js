@@ -56,6 +56,10 @@ class ViewModel {
         this.projects = ko.observableArray([]);
         this.selectedProject = ko.observable(null);
         this.availableParticipants = ko.observableArray([]);
+        
+        this.devReleases = ko.observableArray([]);
+        this.stagingReleases = ko.observableArray([]);
+        this.productionReleases = ko.observableArray([]);
         this.selectedParticipants = ko.observableArray([]);
         this.durationPerPerson = ko.observable(180);
         
@@ -98,6 +102,7 @@ class ViewModel {
         this.selectedProject.subscribe(proj => {
             if (proj) this.fetchParticipants(proj.id);
         });
+
 
         // Computed Timer Visuals
         this.timerDisplay = ko.computed(() => {
@@ -210,6 +215,59 @@ class ViewModel {
         }
     }
 
+     fetchReleases = async () => {
+        if (!this.selectedProject()) return;
+    
+        const projectId = this.selectedProject().id;
+    
+        try {
+            // Development Releases
+            let devQuery = {
+                project: projectId,
+                type: 'release',
+                status: 'toDo,inProgress,completed',
+                _sortField: 'releaseInformation.number',
+                _sortType: 'desc',
+                _size: 1000
+            };
+    
+            // Staging Releases
+            let stagingQuery = {
+                project: projectId,
+                type: 'release',
+                status: 'staging',
+                _sortField: 'releaseInformation.number',
+                _sortType: 'desc',
+                _size: 1000
+            };
+    
+            // Production Releases
+            let productionQuery = {
+                project: projectId,
+                type: 'release',
+                status: 'released',
+                _sortField: 'releaseInformation.number',
+                _sortType: 'desc',
+                _size: 1
+            };
+    
+            const [devRes, stagingRes, productionRes] = await Promise.all([
+                this.slingr.get('/data/dev.tasks', devQuery),
+                this.slingr.get('/data/dev.tasks', stagingQuery),
+                this.slingr.get('/data/dev.tasks', productionQuery)
+            ]);
+    
+            this.devReleases(devRes.items || []);
+            this.stagingReleases(stagingRes.items || []);
+            this.productionReleases(productionRes.items || []);
+    
+        } catch (error) {
+            console.error("Error fetching releases:", error);
+            this.addToast('Failed to load releases.', 'error');
+        }
+    };
+
+
     updateDurationPerPerson = (amount) => {
         let current = this.durationPerPerson();
         let newValue = current + amount;
@@ -234,6 +292,7 @@ class ViewModel {
         this.notes([]);
         this.totalMeetingTime(0);
         this.meetingState('active');
+        this.fetchReleases();
         
         // Start total meeting timer tracking
         this.totalInterval = setInterval(() => this.totalMeetingTime(this.totalMeetingTime() + 1), 1000);

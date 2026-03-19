@@ -78,6 +78,7 @@
 
         <!-- DAILY CONFIGURATION -->
         <div data-bind="visible: meetingState() === 'setup'" style="display: none;">
+
             <div class="card shadow-sm mb-4">
                 <div class="card-header"><h5>Configure Daily Stand-up</h5></div>
                 <div class="card-body">
@@ -127,6 +128,46 @@
             </div>
         </div>
 
+        <!-- PROJECT HEALTH STATUS -->
+        <div class="card shadow-sm mb-4" data-bind="visible: meetingState() === 'active'" style="display: none;">
+            <div class="card-header"><h5>Project Health Status</h5></div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Development -->
+                    <div class="col-md-4">
+                        <h6 class="fw-bold badge bg-success">Development</h6>
+                        <ul class="list-group list-group-flush" data-bind="foreach: devReleases">
+                            <li class="list-group-item">
+                                <span class="fw-bold" data-bind="text: 'Release #' + releaseInformation.number"></span>
+                            </li>
+                        </ul>
+                        <div data-bind="visible: devReleases().length === 0" class="text-muted">No active releases.</div>
+                    </div>
+
+                    <!-- Staging -->
+                    <div class="col-md-4">
+                        <h6 class="fw-bold badge bg-warning">Staging</h6>
+                        <ul class="list-group list-group-flush" data-bind="foreach: stagingReleases">
+                            <li class="list-group-item">
+                                <span class="fw-bold" data-bind="text: 'Release #' + releaseInformation.number"></span>
+                            </li>
+                        </ul>
+                        <div data-bind="visible: stagingReleases().length === 0" class="text-muted" data-bind="text: productionReleases().length > 0 ? 'Same as Production' : 'No active releases.'"></div>
+                    </div>
+
+                    <!-- Production -->
+                    <div class="col-md-4">
+                        <h6 class="fw-bold badge bg-primary">Production</h6>
+                        <ul class="list-group list-group-flush" data-bind="foreach: productionReleases">
+                            <li class="list-group-item">
+                                <span class="fw-bold" data-bind="text: 'Release #' + releaseInformation.number"></span>
+                            </li>
+                        </ul>
+                        <div data-bind="visible: productionReleases().length === 0" class="text-muted">No releases in production.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div data-bind="visible: meetingState() === 'active'" style="display: none;">
             <div class="row">
                 <div class="col-md-8">
