@@ -8,7 +8,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
-    
+    <link rel="stylesheet" href="./style.css">
+
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.5.0/knockout-min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -38,9 +39,11 @@
                         <input class="form-check-input" type="checkbox" id="themeSwitchNav" data-bind="checked: isDarkMode">
                         <label class="form-check-label" for="themeSwitchNav"><i data-bind="css: isDarkMode() ? 'bi-moon-stars-fill' : 'bi-sun-fill'"></i></label>
                     </div>
+                    <!-- ko if: logged -->
                     <button class="btn btn-sm btn-outline-danger" data-bind="click: logout">
                         <i class="bi bi-box-arrow-right"></i> Logout
                     </button>
+                    <!-- /ko -->
                     </div>
             </div>
         </nav>
@@ -64,6 +67,12 @@
                     <button data-bind="attr: { disabled: loading }" type="submit" class="btn btn-primary w-100">Login</button>
                 </div>
             </form>
+            <div class="card-footer text-body-secondary small">
+                <p class="mb-0">
+                    <i class="bi bi-info-circle-fill me-1"></i>
+                    <strong>Disclaimer:</strong> This is a <strong>third-party extension</strong> for the Slingr Solutions app and is not created or endorsed by the Slingr Solutions app development team. It does  not collect or store personal data, such as your password. The app runs entirely in your browser to let you view projects, see time entries, and manage your time logs directly within your Slingr Solutions         account. For full transparency, the source code is available via the link in the footer.
+                </p>
+            </div>
         </div>
 
         <!-- DAILY CONFIGURATION -->
@@ -207,6 +216,27 @@
         </div>
     </main>
 
+    <!-- Back to top button -->
+    <button type="button" class="btn btn-primary rounded-circle shadow-lg" id="back-to-top-btn" title="Back to top">
+        <i class="bi bi-arrow-up fs-4"></i>
+    </button>
+
+    <!-- FOOTER -->
+    <footer class="text-center text-body-secondary py-3 mt-5 border-top">
+        <p class="mb-0">
+            Made with <i class="bi bi-heart-fill text-danger"></i> by a bored panda
+            <span class="mx-2">|</span>
+            <a href="https://github.com/espinosajuanma/solutions-time-tracking" target="_blank" class="text-body-secondary">
+                <i class="bi bi-github"></i> Contribute
+            </a>
+            <span class="mx-2">|</span>
+            <a href="https://slingrhq.slack.com/archives/C0A11LQ5Z3N" target="_blank" class="text-body-secondary">
+                <i class="bi bi-slack"></i> Contact
+            </a>
+        </p>
+    </footer>
+
+    <!-- TOAST -->
     <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 11" data-bind="foreach: toasts">
         <div class="toast show" role="alert">
             <div class="toast-header">
