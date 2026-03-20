@@ -134,8 +134,19 @@
             <div class="card-header"><h5>Project Health Status</h5></div>
             <div class="card-body">
                 <div class="row">
+                    <!-- Planning -->
+                    <div class="col-md-3">
+                        <h6 class="fw-bold badge bg-secondary">Planning</h6>
+                        <ul class="list-group list-group-flush" data-bind="foreach: planningReleases">
+                            <li class="list-group-item">
+                                <span class="fw-bold" data-bind="text: 'Release #' + releaseInformation.number"></span>
+                            </li>
+                        </ul>
+                        <div data-bind="visible: planningReleases().length === 0" class="text-muted">No planned releases.</div>
+                    </div>
+
                     <!-- Development -->
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <h6 class="fw-bold badge bg-success">Development</h6>
                         <ul class="list-group list-group-flush" data-bind="foreach: devReleases">
                             <li class="list-group-item">
@@ -146,7 +157,7 @@
                     </div>
 
                     <!-- Staging -->
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <h6 class="fw-bold badge bg-warning">Staging</h6>
                         <ul class="list-group list-group-flush" data-bind="foreach: stagingReleases">
                             <li class="list-group-item">
@@ -157,7 +168,7 @@
                     </div>
 
                     <!-- Production -->
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <h6 class="fw-bold badge bg-primary">Production</h6>
                         <ul class="list-group list-group-flush" data-bind="foreach: productionReleases">
                             <li class="list-group-item">

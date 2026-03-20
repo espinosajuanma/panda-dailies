@@ -118,6 +118,7 @@ class ViewModel {
         this.selectedProject = ko.observable(null);
         this.availableParticipants = ko.observableArray([]);
         
+        this.planningReleases = ko.observableArray([]);
         this.devReleases = ko.observableArray([]);
         this.stagingReleases = ko.observableArray([]);
         this.productionReleases = ko.observableArray([]);
@@ -327,10 +328,19 @@ class ViewModel {
     
         try {
             // Development Releases
+            let planningQuery = {
+                project: projectId,
+                type: 'release',
+                status: 'toDo',
+                _sortField: 'releaseInformation.number',
+                _sortType: 'desc',
+            };
+
+            // Development Releases
             let devQuery = {
                 project: projectId,
                 type: 'release',
-                status: 'toDo,inProgress,completed',
+                status: 'inProgress,completed',
                 _sortField: 'releaseInformation.number',
                 _sortType: 'desc',
             };
@@ -354,12 +364,14 @@ class ViewModel {
                 _size: 1,
             };
     
-            const [devRes, stagingRes, productionRes] = await Promise.all([
+            const [planningRes, devRes, stagingRes, productionRes] = await Promise.all([
+                this.slingr.get('/data/dev.tasks', planningQuery),
                 this.slingr.get('/data/dev.tasks', devQuery),
                 this.slingr.get('/data/dev.tasks', stagingQuery),
                 this.slingr.get('/data/dev.tasks', productionQuery)
             ]);
     
+            this.planningReleases(planningRes.items || []);
             this.devReleases(devRes.items || []);
             this.stagingReleases(stagingRes.items || []);
             this.productionReleases(productionRes.items || []);
