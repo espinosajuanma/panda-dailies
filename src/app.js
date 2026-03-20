@@ -535,8 +535,6 @@ class ViewModel {
         if (! hasActionItems && ! hasBlockers && ! hasParkingLot && ! hasNotes) {
             md += `*No notes recorded today.*\n`;
         } else {
-            md += `*Notes:*\n\n`;
-
             if (this.actionItems().length) {
                 md += `*Action Items:*\n`;
                 this.actionItems().forEach(note => {
