@@ -149,8 +149,13 @@ class ViewModel {
                 } else if (view === 'Current') {
                     return t.relation === 'Assignee' && t.status === 'inProgress';
                 } else if (view === 'Remaining') {
-                    if (t.relation === 'Assignee' && t.status === 'toDo') return true;
+                    if (t.relation === 'Assignee' && t.status === 'toDo') {
+                        return true;
+                    } 
                     if (t.relation === 'Reviewer') {
+                        if (t.status !== 'inReview') {
+                            return false;
+                        } 
                         let fb = t.reviewFeedbacks.find(f => f.reviewer.id === userId);
                         let fbStatus = fb ? fb.feedback : 'pending';
                         return fbStatus === 'pending' || !fbStatus;
