@@ -56,6 +56,10 @@ class ViewModel {
         this.projects = ko.observableArray([]);
         this.selectedProject = ko.observable(null);
         this.availableParticipants = ko.observableArray([]);
+        
+        this.devReleases = ko.observableArray([]);
+        this.stagingReleases = ko.observableArray([]);
+        this.productionReleases = ko.observableArray([]);
         this.selectedParticipants = ko.observableArray([]);
         this.durationPerPerson = ko.observable(180);
         
@@ -64,7 +68,12 @@ class ViewModel {
         this.activeSpeaker = ko.observable(null);
         this.activeTasks = ko.observableArray([]);
         this.parkingLot = ko.observableArray([]);
-        this.currentNoteInput = ko.observable('');
+        this.blockers = ko.observableArray([]);
+        this.actionItems = ko.observableArray([]);
+        this.notes = ko.observableArray([]);
+        this.currentBlockerInput = ko.observable('');
+        this.currentParkingLotInput = ko.observable('');
+        this.currentActionItemInput = ko.observable('');
         
         // Timer Engine
         this.remainingSeconds = ko.observable(0);
@@ -93,6 +102,7 @@ class ViewModel {
         this.selectedProject.subscribe(proj => {
             if (proj) this.fetchParticipants(proj.id);
         });
+
 
         // Computed Timer Visuals
         this.timerDisplay = ko.computed(() => {
@@ -205,6 +215,59 @@ class ViewModel {
         }
     }
 
+     fetchReleases = async () => {
+        if (!this.selectedProject()) return;
+    
+        const projectId = this.selectedProject().id;
+    
+        try {
+            // Development Releases
+            let devQuery = {
+                project: projectId,
+                type: 'release',
+                status: 'toDo,inProgress,completed',
+                _sortField: 'releaseInformation.number',
+                _sortType: 'desc',
+                _size: 1000
+            };
+    
+            // Staging Releases
+            let stagingQuery = {
+                project: projectId,
+                type: 'release',
+                status: 'staging',
+                _sortField: 'releaseInformation.number',
+                _sortType: 'desc',
+                _size: 1000
+            };
+    
+            // Production Releases
+            let productionQuery = {
+                project: projectId,
+                type: 'release',
+                status: 'released',
+                _sortField: 'releaseInformation.number',
+                _sortType: 'desc',
+                _size: 1
+            };
+    
+            const [devRes, stagingRes, productionRes] = await Promise.all([
+                this.slingr.get('/data/dev.tasks', devQuery),
+                this.slingr.get('/data/dev.tasks', stagingQuery),
+                this.slingr.get('/data/dev.tasks', productionQuery)
+            ]);
+    
+            this.devReleases(devRes.items || []);
+            this.stagingReleases(stagingRes.items || []);
+            this.productionReleases(productionRes.items || []);
+    
+        } catch (error) {
+            console.error("Error fetching releases:", error);
+            this.addToast('Failed to load releases.', 'error');
+        }
+    };
+
+
     updateDurationPerPerson = (amount) => {
         let current = this.durationPerPerson();
         let newValue = current + amount;
@@ -224,8 +287,12 @@ class ViewModel {
         
         this.queue(array);
         this.parkingLot([]);
+        this.actionItems([]);
+        this.blockers([]);
+        this.notes([]);
         this.totalMeetingTime(0);
         this.meetingState('active');
+        this.fetchReleases();
         
         // Start total meeting timer tracking
         this.totalInterval = setInterval(() => this.totalMeetingTime(this.totalMeetingTime() + 1), 1000);
@@ -330,21 +397,47 @@ class ViewModel {
 
     markAbsent = () => {
         if (this.activeSpeaker()) {
-            this.addNoteToParkingLot(`*${this.activeSpeaker().name} was absent.*`);
+            this.addNoteToNotes(`${this.activeSpeaker().name} was absent.`);
             this.nextSpeaker();
         }
     }
 
-    // --- NOTES & SUMMARY ---
-    addNote = () => {
-        if(this.currentNoteInput().trim() !== '') {
-            this.addNoteToParkingLot(`**[${this.activeSpeaker() ? this.activeSpeaker().name : 'General'}]**: ${this.currentNoteInput()}`);
-            this.currentNoteInput('');
+    // --- SPLIT NOTES & SUMMARY ---
+    addActionItem = () => {
+        if (this.currentActionItemInput().trim() !== '') {
+            this.addNoteToActionItems(`[${this.activeSpeaker() ? this.activeSpeaker().name : 'General'}]: ${this.currentActionItemInput()}`);
+            this.currentActionItemInput('');
         }
+    }
+
+    addBlocker = () => {
+        if (this.currentBlockerInput().trim() !== '') {
+            this.addNoteToBlockers(`[${this.activeSpeaker() ? this.activeSpeaker().name : 'General'}]: ${this.currentBlockerInput()}`);
+            this.currentBlockerInput('');
+        }
+    }
+
+    addParkingLotTopic = () => {
+        if (this.currentParkingLotInput().trim() !== '') {
+            this.addNoteToParkingLot(`[${this.activeSpeaker() ? this.activeSpeaker().name : 'General'}]: ${this.currentParkingLotInput()}`);
+            this.currentParkingLotInput('');
+        }
+    }
+
+    addNoteToNotes = (text) => {
+        this.notes.push({ text });
     }
 
     addNoteToParkingLot = (text) => {
         this.parkingLot.push({ text });
+    }
+
+    addNoteToBlockers = (text) => {
+        this.blockers.push({ text });
+    }
+
+    addNoteToActionItems = (text) => {
+        this.actionItems.push({ text });
     }
 
     endMeeting = () => {
@@ -361,17 +454,45 @@ class ViewModel {
         const mins = Math.floor(this.totalMeetingTime() / 60);
         const secs = this.totalMeetingTime() % 60;
         
-        let md = `🐼 **Panda-Dailies Summary:** ${projName}\n`;
-        md += `⏱️ **Total Time:** ${mins}m ${secs}s\n`;
-        md += `👥 **Participants:** ${this.selectedParticipants().map(p => p.name).join(', ')}\n\n`;
+        let md = `🐼 *Panda-Dailies Summary*\n`;
+        md += `💼 *Project Name:* ${projName}\n`;
+        md += `⏱️ *Total Time:* ${mins}m ${secs}s\n`;
+        md += `👥 *Participants:* ${this.selectedParticipants().map(p => p.name).join(', ')}\n\n`;
         
-        md += `🚗 **Parking Lot & Notes:**\n`;
-        if (this.parkingLot().length === 0) {
+        let hasActionItems = this.actionItems().length > 0;
+        let hasBlockers = this.blockers().length > 0;
+        let hasParkingLot = this.parkingLot().length > 0;
+        let hasNotes = this.notes().length > 0;
+        
+        if (! hasActionItems && ! hasBlockers && ! hasParkingLot && ! hasNotes) {
             md += `*No notes recorded today.*\n`;
         } else {
-            this.parkingLot().forEach(note => {
-                md += `- ${note.text}\n`;
-            });
+            md += `*Notes:*\n\n`;
+
+            if (this.actionItems().length) {
+                md += `*Action Items:*\n`;
+                this.actionItems().forEach(note => {
+                    md += `- 🗒️ ${note.text}\n`;
+                });
+            }
+            if (this.blockers().length) {
+                md += `*Blockers:*\n`;
+                this.blockers().forEach(note => {
+                    md += `- 🛑 ${note.text}\n`;
+                });
+            }
+            if (this.parkingLot().length) {
+                md += `*Parking Lot:*\n`;
+                this.parkingLot().forEach(note => {
+                    md += `- 🛻 ${note.text}\n`;
+                });
+            }
+            if (this.notes().length) {
+                md += `*General Notes:*\n`;
+                this.notes().forEach(note => {
+                    md += `- ${note.text}\n`;
+                });
+            }
         }
         this.markdownSummary(md);
     }
