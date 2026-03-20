@@ -122,7 +122,7 @@ class ViewModel {
         this.stagingReleases = ko.observableArray([]);
         this.productionReleases = ko.observableArray([]);
         this.selectedParticipants = ko.observableArray([]);
-        this.durationPerPerson = ko.observable(180);
+        this.durationPerPerson = ko.observable(2);
         
         // Active Meeting State
         this.queue = ko.observableArray([]);
@@ -338,7 +338,7 @@ class ViewModel {
     updateDurationPerPerson = (amount) => {
         let current = this.durationPerPerson();
         let newValue = current + amount;
-        if (newValue >= 60) {
+        if (newValue >= 1) {
             this.durationPerPerson(current + amount);
         }
     }
@@ -377,7 +377,8 @@ class ViewModel {
         this.activeSpeaker(next);
         this.fetchTasksForUser(next.id);
         
-        this.remainingSeconds(parseInt(this.durationPerPerson()));
+        let remainingSeconds = parseInt(this.durationPerPerson()) * 60;
+        this.remainingSeconds(remainingSeconds);
         if (!this.isTimerRunning()) {
             this.toggleTimer();
         }

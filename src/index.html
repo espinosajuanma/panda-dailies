@@ -94,14 +94,14 @@
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Duration Per Person</label>
+                            <label class="form-label fw-bold">Duration Per Person <span class="text-muted">(minutes)</span></label>
                             <div class="input-group">
-                                <button class="btn btn-outline-secondary" type="button" data-bind="click: updateDurationPerPerson.bind($data, -60), attr: { disabled: $root.loading() }">
+                                <button class="btn btn-outline-secondary" type="button" data-bind="click: updateDurationPerPerson.bind($data, -1), attr: { disabled: $root.loading() }">
                                     <span class="d-none d-sm-inline">-1m</span>
                                     <span class="d-inline d-sm-none">-</span>
                                 </button>
                                 <input id="durationPerPerson" type="text" class="form-control text-center fw-bold" data-bind="value: durationPerPerson, attr: { disabled: $root.loading() }">
-                                <button class="btn btn-outline-secondary" type="button" data-bind="click: updateDurationPerPerson.bind($data, 60), attr: { disabled: $root.loading() }">
+                                <button class="btn btn-outline-secondary" type="button" data-bind="click: updateDurationPerPerson.bind($data, 1), attr: { disabled: $root.loading() }">
                                     <span class="d-none d-sm-inline">+1m</span>
                                     <span class="d-inline d-sm-none">+</span>
                                 </button>
