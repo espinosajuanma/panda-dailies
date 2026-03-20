@@ -41,6 +41,7 @@
                         <label class="form-check-label" for="themeSwitchNav"><i data-bind="css: isDarkMode() ? 'bi-moon-stars-fill' : 'bi-sun-fill'"></i></label>
                     </div>
                     <!-- ko if: logged -->
+                    <span class="navbar-text me-3 d-none d-md-inline" data-bind="text: slingr.user?.firstName"></span>
                     <button class="btn btn-sm btn-outline-danger" data-bind="click: logout">
                         <i class="bi bi-box-arrow-right"></i> Logout
                     </button>
