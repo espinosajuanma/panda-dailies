@@ -131,55 +131,72 @@
 
         <!-- PROJECT HEALTH STATUS -->
         <div class="card shadow-sm mb-4" data-bind="visible: meetingState() === 'active'" style="display: none;">
-            <div class="card-header"><h5>Project Health Status</h5></div>
+            <div class="card-header">
+                <h5>💼 <span data-bind="text: selectedProject() ? selectedProject().name : 'Daily Stand-up'"></span></h5>
+            </div>
+
             <div class="card-body">
-                <div class="row">
-                    <!-- Planning -->
+                <h6 class="text-end"><span data-bind="text: currentDate"></span> 📆</h6>
+                <div class="row g-3">
                     <div class="col-md-3">
-                        <h6 class="fw-bold badge bg-secondary">Planning</h6>
-                        <ul class="list-group list-group-flush" data-bind="foreach: planningReleases">
-                            <li class="list-group-item">
-                                <span class="fw-bold" data-bind="text: 'Release #' + releaseInformation.number"></span>
-                            </li>
-                        </ul>
-                        <div data-bind="visible: planningReleases().length === 0" class="text-muted">No planned releases.</div>
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header"><h5 class="fw-bold mb-0">Planning</h5></div> 
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush" data-bind="foreach: planningReleases">
+                                    <li class="list-group-item px-0">
+                                        <span class="fw-bold" data-bind="text: 'Release #' + releaseInformation.number">Release #0</span>
+                                    </li>
+                                </ul>
+                                <div data-bind="visible: planningReleases().length === 0" class="text-muted" style="display: none;">No planned releases.</div>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Development -->
                     <div class="col-md-3">
-                        <h6 class="fw-bold badge bg-success">Development</h6>
-                        <ul class="list-group list-group-flush" data-bind="foreach: devReleases">
-                            <li class="list-group-item">
-                                <span class="fw-bold" data-bind="text: 'Release #' + releaseInformation.number"></span>
-                            </li>
-                        </ul>
-                        <div data-bind="visible: devReleases().length === 0" class="text-muted">No active releases.</div>
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header"><h5 class="fw-bold mb-0">Development</h5></div> 
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush" data-bind="foreach: devReleases">
+                                    <li class="list-group-item px-0">
+                                        <span class="fw-bold" data-bind="text: 'Release #' + releaseInformation.number">Release #0</span>
+                                    </li>
+                                </ul>
+                                <div data-bind="visible: devReleases().length === 0" class="text-muted">No active releases.</div>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Staging -->
                     <div class="col-md-3">
-                        <h6 class="fw-bold badge bg-warning">Staging</h6>
-                        <ul class="list-group list-group-flush" data-bind="foreach: stagingReleases">
-                            <li class="list-group-item">
-                                <span class="fw-bold" data-bind="text: 'Release #' + releaseInformation.number"></span>
-                            </li>
-                        </ul>
-                        <div data-bind="visible: stagingReleases().length === 0" class="text-muted" data-bind="text: productionReleases().length > 0 ? 'Same as Production' : 'No active releases.'"></div>
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header"><h5 class="fw-bold mb-0">Staging</h5></div> 
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush" data-bind="foreach: stagingReleases">
+                                    <li class="list-group-item px-0">
+                                        <span class="fw-bold" data-bind="text: 'Release #' + releaseInformation.number">Release #0</span>
+                                    </li>
+                                </ul>
+                                <div data-bind="visible: stagingReleases().length === 0, text: productionReleases().length > 0 ? 'Same as Production' : 'No active releases.'" class="text-muted">No active releases.</div>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Production -->
                     <div class="col-md-3">
-                        <h6 class="fw-bold badge bg-primary">Production</h6>
-                        <ul class="list-group list-group-flush" data-bind="foreach: productionReleases">
-                            <li class="list-group-item">
-                                <span class="fw-bold" data-bind="text: 'Release #' + releaseInformation.number"></span>
-                            </li>
-                        </ul>
-                        <div data-bind="visible: productionReleases().length === 0" class="text-muted">No releases in production.</div>
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header"><h5 class="fw-bold mb-0">Production</h5></div> 
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush" data-bind="foreach: productionReleases">
+                                    <li class="list-group-item px-0">
+                                        <span class="fw-bold" data-bind="text: 'Release #' + releaseInformation.number">Release #0</span>
+                                    </li>
+                                </ul>
+                                <div data-bind="visible: productionReleases().length === 0" class="text-muted">No releases in production.</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
         <div data-bind="visible: meetingState() === 'active'" style="display: none;">
             <div class="row">
                 <div class="col-md-8">

@@ -112,6 +112,12 @@ class ViewModel {
         this.loading = ko.observable(false);
         this.logged = ko.observable(false);
         this.meetingState = ko.observable('login'); // 'login', 'setup', 'active', 'summary'
+        this.currentDate = new Date().toLocaleDateString('en-US', { 
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        });
         
         // Setup State
         this.projects = ko.observableArray([]);
@@ -579,6 +585,7 @@ class ViewModel {
         
         let md = `🐼 *Panda-Dailies Summary*\n`;
         md += `💼 *Project Name:* ${projName}\n`;
+        md += `📆 *Date:* ${this.currentDate}\n`;
         md += `⏱️ *Total Time:* ${mins}m ${secs}s\n`;
         md += `👥 *Participants:* ${this.selectedParticipants().map(p => p.name).join(', ')}\n\n`;
         
