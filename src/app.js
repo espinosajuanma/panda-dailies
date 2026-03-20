@@ -1,16 +1,22 @@
+class AuthError extends Error {
+    constructor(message) { super(message); this.name = 'AuthError'; }
+}
+
 class Slingr {
     constructor(app, env, token) {
         this.url = `https://${app}.slingrs.io/${env}/runtime/api`;
         this.token = token;
     }
 
-    login = async (email, pass) => {
+    login = async (email, password) => {
         let res = await fetch(`${this.url}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password: pass }),
+            body: JSON.stringify({ email, password }),
         });
-        if (!res.ok) throw new Error(`[${res.status}] ${res.statusText}`);
+        if (!res.ok) {
+            throw new Error(`[${res.status}] ${res.statusText}`);
+        }
         let data = await res.json();
         this.token = data.token;
         this.user = data.user;
@@ -18,7 +24,9 @@ class Slingr {
     }
 
     getCurrentUser = async () => {
-        if (!this.token) throw new Error('Not logged in');
+        if (!this.token) {
+            throw new Error('Not logged in');
+        }
         this.user = await this.get('/users/current');
         return this.user;
     }
@@ -36,21 +44,74 @@ class Slingr {
         return await res.json();
     }
 
-    get = (path, params = {}) => this.request('GET', path, params);
+    get = (path, params = {}) => {
+        return this.request('GET', path, params);
+    }
+
+    post = (path, payload) => {
+        return this.request('POST', path, {}, payload);
+    }
+
+    put = (path, payload) => {
+        return this.request('PUT', path, {}, payload);
+    }
+
+    delete = (path) => {
+        return this.request('DELETE', path);
+    }
 }
 
 class ViewModel {
     constructor() {
         this.slingr = new Slingr('solutions', 'prod');
+
+        // Login
+        this.email = ko.observable(localStorage.getItem('solutions:timetracking:email') || null);
+        this.pass = ko.observable(null);
+        this.logginIn = ko.observable(false);
+        this.logged = ko.observable(false);
+        this.logged.subscribe(val => {
+            if (val) {
+                this.addToast('Logged in');
+                this.initCalendar();
+            }
+        });
+
+        let token = localStorage.getItem('solutions:timetracking:token');
+        if (token) {
+            console.log('Using token', token);
+            this.slingr.token = token;
+            this.logginIn(true);
+            this.slingr.getCurrentUser()
+            .then(user => {
+                console.log('Logged in as', user);
+                this.logged(true);
+                localStorage.setItem('solutions:timetracking:token', this.slingr.token);
+            })
+            .catch(e => {
+                console.warn('Invalid token', e);
+                this.slingr.token = null;
+                localStorage.removeItem('solutions:timetracking:token');
+                this.logged(false);
+                this.addToast('Invalid token or expired', 'error');
+            })
+            .finally(e => {
+                this.logginIn(false);
+            });
+
+            const storedHours = localStorage.getItem('solutions:timetracking:dailyWorkHours');
+            this.dailyWorkHours = ko.observable(storedHours ? parseInt(storedHours, 10) : 8);
+            // Subscribe to changes so it saves and updates the dashboard automatically
+            this.dailyWorkHours.subscribe(val => {
+                localStorage.setItem('solutions:timetracking:dailyWorkHours', val);
+                this.updateDashboard();
+            });
+        }
         
         // App State
         this.loading = ko.observable(false);
         this.logged = ko.observable(false);
         this.meetingState = ko.observable('login'); // 'login', 'setup', 'active', 'summary'
-        
-        // Auth
-        this.email = ko.observable(sessionStorage.getItem('pandadailies:email') || '');
-        this.pass = ko.observable('');
         
         // Setup State
         this.projects = ko.observableArray([]);
@@ -125,7 +186,7 @@ class ViewModel {
 
     // --- AUTH ---
     checkSession = async () => {
-        let token = sessionStorage.getItem('pandadailies:token');
+        let token = localStorage.getItem('solutions:timetracking:token');
         if (token) {
             this.slingr.token = token;
             this.loading(true);
@@ -141,20 +202,26 @@ class ViewModel {
 
     login = async () => {
         this.loading(true);
+        this.slingr.token = null;
         try {
             await this.slingr.login(this.email(), this.pass());
-            sessionStorage.setItem('pandadailies:email', this.email());
-            sessionStorage.setItem('pandadailies:token', this.slingr.token);
-            this.handleLoginSuccess();
         } catch (e) {
             this.addToast('Invalid email or password', 'error');
+        }
+        if (this.slingr.token) {
+            localStorage.setItem('solutions:timetracking:email', this.email());
+            localStorage.setItem('solutions:timetracking:token', this.slingr.token);
+            let user = await this.slingr.getCurrentUser();
+            console.log('Logged', user);
+            this.logged(true)
+            this.handleLoginSuccess();
         }
         this.pass('');
         this.loading(false);
     }
 
     logout = () => {
-        sessionStorage.removeItem('pandadailies:token');
+        localStorage.removeItem('solutions:timetracking:token');
         this.slingr.token = null;
         this.logged(false);
         this.meetingState('login');
