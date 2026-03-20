@@ -179,7 +179,7 @@
                             
                             <div class="display-1 fw-bold mb-4" data-bind="text: timerDisplay, css: timerColorClass" style="font-variant-numeric: tabular-nums;"></div>
                             
-                            <div class="btn-group btn-group-lg" role="group">
+                            <div class="btn-group btn-group-md" role="group">
                                 <button class="btn" data-bind="click: toggleTimer, css: isTimerRunning() ? 'btn-warning' : 'btn-success', text: isTimerRunning() ? 'Pause' : 'Resume'"></button>
                                 <button class="btn btn-primary" data-bind="click: nextSpeaker">Next Person <i class="bi bi-arrow-right"></i></button>
                             </div>
@@ -190,11 +190,25 @@
                         </div>
                     </div>
 
+                    <!-- Board -->
                     <div class="card shadow-sm mb-3">
-                        <div class="card-header">
-                            <h6 class="mb-0">Current Tasks (<span data-bind="text: activeSpeaker() ? activeSpeaker().name : ''"></span>)</h6>
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">Tasks (<span data-bind="text: activeSpeaker() ? activeSpeaker().name : ''"></span>)</h6>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <input type="radio" class="btn-check" name="taskView" id="viewDone" value="Done" data-bind="checked: selectedTaskView">
+                                <label class="btn btn-outline-primary" for="viewDone">Done</label>
+
+                                <input type="radio" class="btn-check" name="taskView" id="viewCurrent" value="Current" data-bind="checked: selectedTaskView">
+                                <label class="btn btn-outline-primary" for="viewCurrent">Current</label>
+
+                                <input type="radio" class="btn-check" name="taskView" id="viewRemaining" value="Remaining" data-bind="checked: selectedTaskView">
+                                <label class="btn btn-outline-primary" for="viewRemaining">Remaining</label>
+
+                                <input type="radio" class="btn-check" name="taskView" id="viewAll" value="All" data-bind="checked: selectedTaskView">
+                                <label class="btn btn-outline-primary" for="viewAll">All</label>
+                            </div>
                         </div>
-                        <ul class="list-group list-group-flush" data-bind="foreach: activeTasks">
+                        <ul class="list-group list-group-flush" data-bind="foreach: filteredTasks">
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 <div class="me-auto pe-3">
                                     <div class="mb-1">
@@ -218,11 +232,12 @@
                                 </div>
                             </li>
                         </ul>
-                            <div data-bind="visible: activeTasks().length === 0" class="card-body text-muted text-center py-4">
-                                No active tasks found for this sprint.
-                            </div>
+                        <div data-bind="visible: filteredTasks().length === 0" class="card-body text-muted text-center py-4">
+                            No tasks found in this view.
                         </div>
+                    </div>
                 </div>
+
 
                 <div class="col-md-4">
                     <div class="card shadow-sm mb-3">

@@ -127,7 +127,40 @@ class ViewModel {
         // Active Meeting State
         this.queue = ko.observableArray([]);
         this.activeSpeaker = ko.observable(null);
-        this.activeTasks = ko.observableArray([]);
+        this.allUserTasks = ko.observableArray([]);
+        this.selectedTaskView = ko.observable('Done'); // 'Done', 'Current', 'Remaining', 'All'
+
+        this.filteredTasks = ko.computed(() => {
+            let view = this.selectedTaskView();
+            let tasks = this.allUserTasks();
+            let speaker = this.activeSpeaker();
+            let userId = speaker ? speaker.id : null;
+
+            return tasks.filter(t => {
+                if (view === 'All') {
+                    return true;
+                } else if (view === 'Done') {
+                    if (t.relation === 'Assignee' && t.status === 'completed') return true;
+                    if (t.relation === 'Reviewer') {
+                        let fb = t.reviewFeedbacks.find(f => f.reviewer.id === userId);
+                        let fbStatus = fb ? fb.feedback : null;
+                        return fbStatus === 'approved' || fbStatus === 'changesRequested';
+                    }
+                } else if (view === 'Current') {
+                    return t.relation === 'Assignee' && t.status === 'inProgress';
+                } else if (view === 'Remaining') {
+                    if (t.relation === 'Assignee' && t.status === 'toDo') return true;
+                    if (t.relation === 'Reviewer') {
+                        let fb = t.reviewFeedbacks.find(f => f.reviewer.id === userId);
+                        let fbStatus = fb ? fb.feedback : 'pending';
+                        return fbStatus === 'pending' || !fbStatus;
+                    }
+                }
+                return false;
+            });
+        });
+
+        // Notes
         this.parkingLot = ko.observableArray([]);
         this.blockers = ko.observableArray([]);
         this.actionItems = ko.observableArray([]);
@@ -295,7 +328,6 @@ class ViewModel {
                 status: 'toDo,inProgress,completed',
                 _sortField: 'releaseInformation.number',
                 _sortType: 'desc',
-                _size: 1000
             };
     
             // Staging Releases
@@ -305,7 +337,6 @@ class ViewModel {
                 status: 'staging',
                 _sortField: 'releaseInformation.number',
                 _sortType: 'desc',
-                _size: 1000
             };
     
             // Production Releases
@@ -315,7 +346,7 @@ class ViewModel {
                 status: 'released',
                 _sortField: 'releaseInformation.number',
                 _sortType: 'desc',
-                _size: 1
+                _size: 1,
             };
     
             const [devRes, stagingRes, productionRes] = await Promise.all([
@@ -397,44 +428,50 @@ class ViewModel {
     }
 
     fetchTasksForUser = async (userId) => {
-        this.activeTasks([]);
+        this.allUserTasks([]);
+        this.selectedTaskView('Done'); // Reset to Done tab for the next person
+        
         try {
             const projectId = this.selectedProject().id;
             
-            // Query 1: Tasks where the user is an assignee and it's active
             let assignedQuery = {
                 project: projectId,
                 'assignees.id': userId,
                 type: 'notEquals(release)',
-                status: 'toDo,inProgress,staging,completed',
+                status: 'toDo,inProgress,completed',
                 _size: 1000
             };
             
-            // Query 2: Tasks where the user is a reviewer
+            // Removed specific status query here so we can catch all statuses and filter locally
             let reviewQuery = {
                 project: projectId,
                 'reviewers.id': userId,
-                status: 'inReview',
+                status: 'toDo,inProgress,completed',
+                type: 'notEquals(release)',
                 _size: 1000
             };
 
-            // Fire both queries simultaneously for speed
             let [assignedRes, reviewRes] = await Promise.all([
                 this.slingr.get('/data/dev.tasks', assignedQuery).catch(() => ({ items: [] })),
                 this.slingr.get('/data/dev.tasks', reviewQuery).catch(() => ({ items: [] }))
             ]);
 
-            // Map assigned tasks
-            let tasks = assignedRes.items.map(t => ({
-                id: t.id,
-                number: t.number,
-                title: t.title || t.label, // Fallback to label if title is empty
-                status: t.status,
-                type: t.type,
-                relation: 'Assignee'
-            }));
+            let tasks = [];
 
-            // Map review tasks (preventing duplicates if they are somehow both)
+            // Map assigned tasks
+            assignedRes.items.forEach(t => {
+                tasks.push({
+                    id: t.id,
+                    number: t.number,
+                    title: t.title || t.label,
+                    status: t.status,
+                    type: t.type,
+                    relation: 'Assignee',
+                    reviewFeedbacks: t.reviewFeedbacks || []
+                });
+            });
+
+            // Map review tasks
             let existingIds = new Set(tasks.map(t => t.id));
             reviewRes.items.forEach(t => {
                 if (!existingIds.has(t.id)) {
@@ -444,12 +481,13 @@ class ViewModel {
                         title: t.title || t.label,
                         status: t.status,
                         type: t.type,
-                        relation: 'Reviewer'
+                        relation: 'Reviewer',
+                        reviewFeedbacks: t.reviewFeedbacks || []
                     });
                 }
             });
 
-            this.activeTasks(tasks);
+            this.allUserTasks(tasks);
         } catch (e) {
             console.error("Error fetching tasks for user:", e);
         }
