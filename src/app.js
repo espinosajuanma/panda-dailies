@@ -1,16 +1,22 @@
+class AuthError extends Error {
+    constructor(message) { super(message); this.name = 'AuthError'; }
+}
+
 class Slingr {
     constructor(app, env, token) {
         this.url = `https://${app}.slingrs.io/${env}/runtime/api`;
         this.token = token;
     }
 
-    login = async (email, pass) => {
+    login = async (email, password) => {
         let res = await fetch(`${this.url}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password: pass }),
+            body: JSON.stringify({ email, password }),
         });
-        if (!res.ok) throw new Error(`[${res.status}] ${res.statusText}`);
+        if (!res.ok) {
+            throw new Error(`[${res.status}] ${res.statusText}`);
+        }
         let data = await res.json();
         this.token = data.token;
         this.user = data.user;
@@ -18,7 +24,9 @@ class Slingr {
     }
 
     getCurrentUser = async () => {
-        if (!this.token) throw new Error('Not logged in');
+        if (!this.token) {
+            throw new Error('Not logged in');
+        }
         this.user = await this.get('/users/current');
         return this.user;
     }
@@ -36,37 +44,103 @@ class Slingr {
         return await res.json();
     }
 
-    get = (path, params = {}) => this.request('GET', path, params);
+    get = (path, params = {}) => {
+        return this.request('GET', path, params);
+    }
+
+    post = (path, payload) => {
+        return this.request('POST', path, {}, payload);
+    }
+
+    put = (path, payload) => {
+        return this.request('PUT', path, {}, payload);
+    }
+
+    delete = (path) => {
+        return this.request('DELETE', path);
+    }
 }
 
 class ViewModel {
     constructor() {
         this.slingr = new Slingr('solutions', 'prod');
+
+        // Login
+        this.email = ko.observable(localStorage.getItem('solutions:timetracking:email') || null);
+        this.pass = ko.observable(null);
+        this.logginIn = ko.observable(false);
+        this.logged = ko.observable(false);
+        this.logged.subscribe(val => {
+            if (val) {
+                this.addToast('Logged in');
+                this.initCalendar();
+            }
+        });
+
+        let token = localStorage.getItem('solutions:timetracking:token');
+        if (token) {
+            console.log('Using token', token);
+            this.slingr.token = token;
+            this.logginIn(true);
+            this.slingr.getCurrentUser()
+            .then(user => {
+                console.log('Logged in as', user);
+                this.logged(true);
+                localStorage.setItem('solutions:timetracking:token', this.slingr.token);
+            })
+            .catch(e => {
+                console.warn('Invalid token', e);
+                this.slingr.token = null;
+                localStorage.removeItem('solutions:timetracking:token');
+                this.logged(false);
+                this.addToast('Invalid token or expired', 'error');
+            })
+            .finally(e => {
+                this.logginIn(false);
+            });
+
+            const storedHours = localStorage.getItem('solutions:timetracking:dailyWorkHours');
+            this.dailyWorkHours = ko.observable(storedHours ? parseInt(storedHours, 10) : 8);
+            // Subscribe to changes so it saves and updates the dashboard automatically
+            this.dailyWorkHours.subscribe(val => {
+                localStorage.setItem('solutions:timetracking:dailyWorkHours', val);
+                this.updateDashboard();
+            });
+        }
         
         // App State
         this.loading = ko.observable(false);
         this.logged = ko.observable(false);
         this.meetingState = ko.observable('login'); // 'login', 'setup', 'active', 'summary'
-        
-        // Auth
-        this.email = ko.observable(sessionStorage.getItem('pandadailies:email') || '');
-        this.pass = ko.observable('');
+        this.currentDate = new Date().toLocaleDateString('en-US', { 
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        });
         
         // Setup State
         this.projects = ko.observableArray([]);
         this.selectedProject = ko.observable(null);
         this.availableParticipants = ko.observableArray([]);
+        this.selectedParticipants = ko.observableArray([]);
+        this.durationPerPerson = ko.observable(2);
+        this.bufferTime = ko.observable(2);
         
+        // Releases
+        this.planningReleases = ko.observableArray([]);
         this.devReleases = ko.observableArray([]);
         this.stagingReleases = ko.observableArray([]);
         this.productionReleases = ko.observableArray([]);
-        this.selectedParticipants = ko.observableArray([]);
-        this.durationPerPerson = ko.observable(180);
         
         // Active Meeting State
         this.queue = ko.observableArray([]);
         this.activeSpeaker = ko.observable(null);
-        this.activeTasks = ko.observableArray([]);
+        this.allUserTasks = ko.observableArray([]);
+        this.selectedTaskView = ko.observable('Done'); // 'Done', 'Current', 'Remaining', 'All'
+        this.isBufferTime = ko.observable(false);
+
+        // Notes
         this.parkingLot = ko.observableArray([]);
         this.blockers = ko.observableArray([]);
         this.actionItems = ko.observableArray([]);
@@ -103,7 +177,6 @@ class ViewModel {
             if (proj) this.fetchParticipants(proj.id);
         });
 
-
         // Computed Timer Visuals
         this.timerDisplay = ko.computed(() => {
             const sec = this.remainingSeconds();
@@ -120,12 +193,47 @@ class ViewModel {
             return 'text-danger animate-flash';
         });
 
+        this.filteredTasks = ko.computed(() => {
+            let view = this.selectedTaskView();
+            let tasks = this.allUserTasks();
+            let speaker = this.activeSpeaker();
+            let userId = speaker ? speaker.id : null;
+
+            return tasks.filter(t => {
+                if (view === 'All') {
+                    return true;
+                } else if (view === 'Done') {
+                    if (t.relation === 'Assignee' && t.status === 'completed') return true;
+                    if (t.relation === 'Reviewer') {
+                        let fb = t.reviewFeedbacks.find(f => f.reviewer.id === userId);
+                        let fbStatus = fb ? fb.feedback : null;
+                        return fbStatus === 'approved' || fbStatus === 'changesRequested';
+                    }
+                } else if (view === 'Current') {
+                    return t.relation === 'Assignee' && t.status === 'inProgress';
+                } else if (view === 'Remaining') {
+                    if (t.relation === 'Assignee' && t.status === 'toDo') {
+                        return true;
+                    }
+                    if (t.relation === 'Reviewer') {
+                        if (t.status !== 'inReview') {
+                            return false;
+                        }
+                        let fb = t.reviewFeedbacks.find(f => f.reviewer.id === userId);
+                        let fbStatus = fb ? fb.feedback : 'pending';
+                        return fbStatus === 'pending' || !fbStatus;
+                    }
+                }
+                return false;
+            });
+        });
+
         this.checkSession();
     }
 
     // --- AUTH ---
     checkSession = async () => {
-        let token = sessionStorage.getItem('pandadailies:token');
+        let token = localStorage.getItem('solutions:timetracking:token');
         if (token) {
             this.slingr.token = token;
             this.loading(true);
@@ -141,20 +249,26 @@ class ViewModel {
 
     login = async () => {
         this.loading(true);
+        this.slingr.token = null;
         try {
             await this.slingr.login(this.email(), this.pass());
-            sessionStorage.setItem('pandadailies:email', this.email());
-            sessionStorage.setItem('pandadailies:token', this.slingr.token);
-            this.handleLoginSuccess();
         } catch (e) {
             this.addToast('Invalid email or password', 'error');
+        }
+        if (this.slingr.token) {
+            localStorage.setItem('solutions:timetracking:email', this.email());
+            localStorage.setItem('solutions:timetracking:token', this.slingr.token);
+            let user = await this.slingr.getCurrentUser();
+            console.log('Logged', user);
+            this.logged(true)
+            this.handleLoginSuccess();
         }
         this.pass('');
         this.loading(false);
     }
 
     logout = () => {
-        sessionStorage.removeItem('pandadailies:token');
+        localStorage.removeItem('solutions:timetracking:token');
         this.slingr.token = null;
         this.logged(false);
         this.meetingState('login');
@@ -222,13 +336,21 @@ class ViewModel {
     
         try {
             // Development Releases
+            let planningQuery = {
+                project: projectId,
+                type: 'release',
+                status: 'toDo',
+                _sortField: 'releaseInformation.number',
+                _sortType: 'desc',
+            };
+
+            // Development Releases
             let devQuery = {
                 project: projectId,
                 type: 'release',
-                status: 'toDo,inProgress,completed',
+                status: 'inProgress,completed',
                 _sortField: 'releaseInformation.number',
                 _sortType: 'desc',
-                _size: 1000
             };
     
             // Staging Releases
@@ -238,7 +360,6 @@ class ViewModel {
                 status: 'staging',
                 _sortField: 'releaseInformation.number',
                 _sortType: 'desc',
-                _size: 1000
             };
     
             // Production Releases
@@ -248,15 +369,17 @@ class ViewModel {
                 status: 'released',
                 _sortField: 'releaseInformation.number',
                 _sortType: 'desc',
-                _size: 1
+                _size: 1,
             };
     
-            const [devRes, stagingRes, productionRes] = await Promise.all([
+            const [planningRes, devRes, stagingRes, productionRes] = await Promise.all([
+                this.slingr.get('/data/dev.tasks', planningQuery),
                 this.slingr.get('/data/dev.tasks', devQuery),
                 this.slingr.get('/data/dev.tasks', stagingQuery),
                 this.slingr.get('/data/dev.tasks', productionQuery)
             ]);
     
+            this.planningReleases(planningRes.items || []);
             this.devReleases(devRes.items || []);
             this.stagingReleases(stagingRes.items || []);
             this.productionReleases(productionRes.items || []);
@@ -268,10 +391,18 @@ class ViewModel {
     };
 
 
+    updateBufferTime = (amount) => {
+        let current = this.bufferTime();
+        let newValue = current + amount;
+        if (newValue >= 0) {
+            this.bufferTime(current + amount);
+        }
+    }
+
     updateDurationPerPerson = (amount) => {
         let current = this.durationPerPerson();
         let newValue = current + amount;
-        if (newValue >= 60) {
+        if (newValue >= 1) {
             this.durationPerPerson(current + amount);
         }
     }
@@ -292,12 +423,27 @@ class ViewModel {
         this.notes([]);
         this.totalMeetingTime(0);
         this.meetingState('active');
+        this.isBufferTime(true);
         this.fetchReleases();
         
         // Start total meeting timer tracking
-        this.totalInterval = setInterval(() => this.totalMeetingTime(this.totalMeetingTime() + 1), 1000);
+        this.totalInterval = setInterval(() => {
+            return this.totalMeetingTime(this.totalMeetingTime() + 1);
+        }, 1000);
         
-        this.nextSpeaker();
+        this.startBufferTime();
+    }
+
+    startBufferTime = () => {
+        if (! this.bufferTime()) {
+            return this.nextSpeaker();
+        }
+        this.isBufferTime(true);
+        let remainingSeconds = parseInt(this.bufferTime()) * 60;
+        this.remainingSeconds(remainingSeconds);
+        if (!this.isTimerRunning()) {
+            this.toggleTimer();
+        }
     }
 
     nextSpeaker = () => {
@@ -306,11 +452,16 @@ class ViewModel {
             return;
         }
 
+        if (this.isBufferTime()) {
+            this.isBufferTime(false);
+        }
+
         const next = this.queue.shift();
         this.activeSpeaker(next);
         this.fetchTasksForUser(next.id);
         
-        this.remainingSeconds(parseInt(this.durationPerPerson()));
+        let remainingSeconds = parseInt(this.durationPerPerson()) * 60;
+        this.remainingSeconds(remainingSeconds);
         if (!this.isTimerRunning()) {
             this.toggleTimer();
         }
@@ -329,44 +480,50 @@ class ViewModel {
     }
 
     fetchTasksForUser = async (userId) => {
-        this.activeTasks([]);
+        this.allUserTasks([]);
+        this.selectedTaskView('Done'); // Reset to Done tab for the next person
+        
         try {
             const projectId = this.selectedProject().id;
             
-            // Query 1: Tasks where the user is an assignee and it's active
             let assignedQuery = {
                 project: projectId,
                 'assignees.id': userId,
                 type: 'notEquals(release)',
-                status: 'toDo,inProgress,staging,completed',
+                status: 'toDo,inProgress,completed',
                 _size: 1000
             };
             
-            // Query 2: Tasks where the user is a reviewer
+            // Removed specific status query here so we can catch all statuses and filter locally
             let reviewQuery = {
                 project: projectId,
                 'reviewers.id': userId,
-                status: 'inReview',
+                status: 'toDo,inProgress,completed',
+                type: 'notEquals(release)',
                 _size: 1000
             };
 
-            // Fire both queries simultaneously for speed
             let [assignedRes, reviewRes] = await Promise.all([
                 this.slingr.get('/data/dev.tasks', assignedQuery).catch(() => ({ items: [] })),
                 this.slingr.get('/data/dev.tasks', reviewQuery).catch(() => ({ items: [] }))
             ]);
 
-            // Map assigned tasks
-            let tasks = assignedRes.items.map(t => ({
-                id: t.id,
-                number: t.number,
-                title: t.title || t.label, // Fallback to label if title is empty
-                status: t.status,
-                type: t.type,
-                relation: 'Assignee'
-            }));
+            let tasks = [];
 
-            // Map review tasks (preventing duplicates if they are somehow both)
+            // Map assigned tasks
+            assignedRes.items.forEach(t => {
+                tasks.push({
+                    id: t.id,
+                    number: t.number,
+                    title: t.title || t.label,
+                    status: t.status,
+                    type: t.type,
+                    relation: 'Assignee',
+                    reviewFeedbacks: t.reviewFeedbacks || []
+                });
+            });
+
+            // Map review tasks
             let existingIds = new Set(tasks.map(t => t.id));
             reviewRes.items.forEach(t => {
                 if (!existingIds.has(t.id)) {
@@ -376,12 +533,13 @@ class ViewModel {
                         title: t.title || t.label,
                         status: t.status,
                         type: t.type,
-                        relation: 'Reviewer'
+                        relation: 'Reviewer',
+                        reviewFeedbacks: t.reviewFeedbacks || []
                     });
                 }
             });
 
-            this.activeTasks(tasks);
+            this.allUserTasks(tasks);
         } catch (e) {
             console.error("Error fetching tasks for user:", e);
         }
@@ -456,6 +614,7 @@ class ViewModel {
         
         let md = `🐼 *Panda-Dailies Summary*\n`;
         md += `💼 *Project Name:* ${projName}\n`;
+        md += `📆 *Date:* ${this.currentDate}\n`;
         md += `⏱️ *Total Time:* ${mins}m ${secs}s\n`;
         md += `👥 *Participants:* ${this.selectedParticipants().map(p => p.name).join(', ')}\n\n`;
         
@@ -467,8 +626,6 @@ class ViewModel {
         if (! hasActionItems && ! hasBlockers && ! hasParkingLot && ! hasNotes) {
             md += `*No notes recorded today.*\n`;
         } else {
-            md += `*Notes:*\n\n`;
-
             if (this.actionItems().length) {
                 md += `*Action Items:*\n`;
                 this.actionItems().forEach(note => {
