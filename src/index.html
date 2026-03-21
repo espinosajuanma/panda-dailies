@@ -84,8 +84,8 @@
                 <div class="card-header"><h5>Configure Daily Stand-up</h5></div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Select Project</label>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold">💼 Select Project</label>
                             <select class="form-select" data-bind="
                                 options: projects, 
                                 optionsText: 'name', 
@@ -93,8 +93,8 @@
                                 optionsCaption: 'Choose...'">
                             </select>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Duration Per Person <span class="text-muted">(minutes)</span></label>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold">⏱️ Time Per Person</label>
                             <div class="input-group">
                                 <button class="btn btn-outline-secondary" type="button" data-bind="click: updateDurationPerPerson.bind($data, -1), attr: { disabled: $root.loading() }">
                                     <span class="d-none d-sm-inline">-1m</span>
@@ -106,11 +106,27 @@
                                     <span class="d-inline d-sm-none">+</span>
                                 </button>
                             </div>
+                            <div><span class="form-text text-muted">Minutes</span></div>
+                       </div>
+                       <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">⌛ Buffer Time</label>
+                            <div class="input-group">
+                                <button class="btn btn-outline-secondary" type="button" data-bind="click: updateBufferTime.bind($data, -1), attr: { disabled: $root.loading() }">
+                                    <span class="d-none d-sm-inline">-1m</span>
+                                    <span class="d-inline d-sm-none">-</span>
+                                </button>
+                                <input id="bufferTime" type="text" class="form-control text-center fw-bold" data-bind="value: bufferTime, attr: { disabled: $root.loading() }">
+                                <button class="btn btn-outline-secondary" type="button" data-bind="click: updateBufferTime.bind($data, 1), attr: { disabled: $root.loading() }">
+                                    <span class="d-none d-sm-inline">+1m</span>
+                                    <span class="d-inline d-sm-none">+</span>
+                                </button>
+                            </div>
+                            <div><span class="form-text text-muted">Minutes</span></div>
                        </div>
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Participants</label>
+                        <label class="form-label fw-bold">👥 Participants</label>
                         <div class="row g-2" data-bind="foreach: availableParticipants">
                             <div class="col-md-4 col-sm-6">
                                 <div class="form-check form-switch p-2 border rounded">
@@ -140,7 +156,7 @@
                 <div class="row g-3">
                     <div class="col-md-3">
                         <div class="card h-100 shadow-sm">
-                            <div class="card-header"><h5 class="fw-bold mb-0">Planning</h5></div> 
+                            <div class="card-header"><h6 class="fw-bold mb-0">Planning</h6></div> 
                             <div class="card-body">
                                 <ul class="list-group list-group-flush" data-bind="foreach: planningReleases">
                                     <li class="list-group-item px-0">
@@ -154,7 +170,7 @@
 
                     <div class="col-md-3">
                         <div class="card h-100 shadow-sm">
-                            <div class="card-header"><h5 class="fw-bold mb-0">Development</h5></div> 
+                            <div class="card-header"><h6 class="fw-bold mb-0">Development</h6></div> 
                             <div class="card-body">
                                 <ul class="list-group list-group-flush" data-bind="foreach: devReleases">
                                     <li class="list-group-item px-0">
@@ -168,7 +184,7 @@
 
                     <div class="col-md-3">
                         <div class="card h-100 shadow-sm">
-                            <div class="card-header"><h5 class="fw-bold mb-0">Staging</h5></div> 
+                            <div class="card-header"><h6 class="fw-bold mb-0">Staging</h6></div> 
                             <div class="card-body">
                                 <ul class="list-group list-group-flush" data-bind="foreach: stagingReleases">
                                     <li class="list-group-item px-0">
@@ -182,7 +198,7 @@
 
                     <div class="col-md-3">
                         <div class="card h-100 shadow-sm">
-                            <div class="card-header"><h5 class="fw-bold mb-0">Production</h5></div> 
+                            <div class="card-header"><h6 class="fw-bold mb-0">Production</h6></div> 
                             <div class="card-body">
                                 <ul class="list-group list-group-flush" data-bind="foreach: productionReleases">
                                     <li class="list-group-item px-0">
@@ -202,8 +218,10 @@
                 <div class="col-md-8">
                     <div class="card shadow-sm mb-3 border-primary speaker-card">
                         <div class="card-body text-center py-5">
-                            <h2 class="text-muted mb-1">Speaking Now</h2>
-                            <h1 class="display-3 fw-bold text-primary mb-4" data-bind="text: activeSpeaker() ? activeSpeaker().name : 'Finished!'"></h1>
+                            <h2 data-bind="visible: !isBufferTime()" class="text-muted mb-1">Speaking Now</h2>
+                            <h1 class="display-3 fw-bold text-primary mb-4" data-bind="visible: isBufferTime()">Waiting Everyone...</h1>
+                            <h1 class="display-3 fw-bold text-primary mb-4" data-bind="visible: !activeSpeaker() && !isBufferTime()">Finished</h1>
+                            <h1 class="display-3 fw-bold text-primary mb-4" data-bind="visible: activeSpeaker() ? true : false, text: activeSpeaker() ? activeSpeaker().name : 'Name'"></h1>
                             
                             <div class="display-1 fw-bold mb-4" data-bind="text: timerDisplay, css: timerColorClass" style="font-variant-numeric: tabular-nums;"></div>
                             
@@ -211,7 +229,7 @@
                                 <button class="btn" data-bind="click: toggleTimer, css: isTimerRunning() ? 'btn-warning' : 'btn-success', text: isTimerRunning() ? 'Pause' : 'Resume'"></button>
                                 <button class="btn btn-primary" data-bind="click: nextSpeaker">Next Person <i class="bi bi-arrow-right"></i></button>
                             </div>
-                            <div class="mt-3">
+                            <div class="mt-3" data-bind="visible: isBufferTime() === false">
                                 <button class="btn btn-sm btn-outline-secondary me-2" data-bind="click: skipSpeaker" title="Push to end of queue">Skip for Now</button>
                                 <button class="btn btn-sm btn-outline-danger" data-bind="click: markAbsent" title="Remove from today's daily">Mark Absent</button>
                             </div>
@@ -219,7 +237,7 @@
                     </div>
 
                     <!-- Board -->
-                    <div class="card shadow-sm mb-3">
+                    <div data-bind="visible: activeSpeaker()" class="card shadow-sm mb-3">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h6 class="mb-0">Tasks (<span data-bind="text: activeSpeaker() ? activeSpeaker().name : ''"></span>)</h6>
                             <div class="btn-group btn-group-sm" role="group">

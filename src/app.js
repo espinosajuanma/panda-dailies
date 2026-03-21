@@ -123,54 +123,22 @@ class ViewModel {
         this.projects = ko.observableArray([]);
         this.selectedProject = ko.observable(null);
         this.availableParticipants = ko.observableArray([]);
+        this.selectedParticipants = ko.observableArray([]);
+        this.durationPerPerson = ko.observable(2);
+        this.bufferTime = ko.observable(2);
         
+        // Releases
         this.planningReleases = ko.observableArray([]);
         this.devReleases = ko.observableArray([]);
         this.stagingReleases = ko.observableArray([]);
         this.productionReleases = ko.observableArray([]);
-        this.selectedParticipants = ko.observableArray([]);
-        this.durationPerPerson = ko.observable(2);
         
         // Active Meeting State
         this.queue = ko.observableArray([]);
         this.activeSpeaker = ko.observable(null);
         this.allUserTasks = ko.observableArray([]);
         this.selectedTaskView = ko.observable('Done'); // 'Done', 'Current', 'Remaining', 'All'
-
-        this.filteredTasks = ko.computed(() => {
-            let view = this.selectedTaskView();
-            let tasks = this.allUserTasks();
-            let speaker = this.activeSpeaker();
-            let userId = speaker ? speaker.id : null;
-
-            return tasks.filter(t => {
-                if (view === 'All') {
-                    return true;
-                } else if (view === 'Done') {
-                    if (t.relation === 'Assignee' && t.status === 'completed') return true;
-                    if (t.relation === 'Reviewer') {
-                        let fb = t.reviewFeedbacks.find(f => f.reviewer.id === userId);
-                        let fbStatus = fb ? fb.feedback : null;
-                        return fbStatus === 'approved' || fbStatus === 'changesRequested';
-                    }
-                } else if (view === 'Current') {
-                    return t.relation === 'Assignee' && t.status === 'inProgress';
-                } else if (view === 'Remaining') {
-                    if (t.relation === 'Assignee' && t.status === 'toDo') {
-                        return true;
-                    } 
-                    if (t.relation === 'Reviewer') {
-                        if (t.status !== 'inReview') {
-                            return false;
-                        } 
-                        let fb = t.reviewFeedbacks.find(f => f.reviewer.id === userId);
-                        let fbStatus = fb ? fb.feedback : 'pending';
-                        return fbStatus === 'pending' || !fbStatus;
-                    }
-                }
-                return false;
-            });
-        });
+        this.isBufferTime = ko.observable(false);
 
         // Notes
         this.parkingLot = ko.observableArray([]);
@@ -209,7 +177,6 @@ class ViewModel {
             if (proj) this.fetchParticipants(proj.id);
         });
 
-
         // Computed Timer Visuals
         this.timerDisplay = ko.computed(() => {
             const sec = this.remainingSeconds();
@@ -224,6 +191,41 @@ class ViewModel {
             if (sec > 60) return 'text-success';
             if (sec > 0) return 'text-warning';
             return 'text-danger animate-flash';
+        });
+
+        this.filteredTasks = ko.computed(() => {
+            let view = this.selectedTaskView();
+            let tasks = this.allUserTasks();
+            let speaker = this.activeSpeaker();
+            let userId = speaker ? speaker.id : null;
+
+            return tasks.filter(t => {
+                if (view === 'All') {
+                    return true;
+                } else if (view === 'Done') {
+                    if (t.relation === 'Assignee' && t.status === 'completed') return true;
+                    if (t.relation === 'Reviewer') {
+                        let fb = t.reviewFeedbacks.find(f => f.reviewer.id === userId);
+                        let fbStatus = fb ? fb.feedback : null;
+                        return fbStatus === 'approved' || fbStatus === 'changesRequested';
+                    }
+                } else if (view === 'Current') {
+                    return t.relation === 'Assignee' && t.status === 'inProgress';
+                } else if (view === 'Remaining') {
+                    if (t.relation === 'Assignee' && t.status === 'toDo') {
+                        return true;
+                    }
+                    if (t.relation === 'Reviewer') {
+                        if (t.status !== 'inReview') {
+                            return false;
+                        }
+                        let fb = t.reviewFeedbacks.find(f => f.reviewer.id === userId);
+                        let fbStatus = fb ? fb.feedback : 'pending';
+                        return fbStatus === 'pending' || !fbStatus;
+                    }
+                }
+                return false;
+            });
         });
 
         this.checkSession();
@@ -389,6 +391,14 @@ class ViewModel {
     };
 
 
+    updateBufferTime = (amount) => {
+        let current = this.bufferTime();
+        let newValue = current + amount;
+        if (newValue >= 0) {
+            this.bufferTime(current + amount);
+        }
+    }
+
     updateDurationPerPerson = (amount) => {
         let current = this.durationPerPerson();
         let newValue = current + amount;
@@ -413,18 +423,37 @@ class ViewModel {
         this.notes([]);
         this.totalMeetingTime(0);
         this.meetingState('active');
+        this.isBufferTime(true);
         this.fetchReleases();
         
         // Start total meeting timer tracking
-        this.totalInterval = setInterval(() => this.totalMeetingTime(this.totalMeetingTime() + 1), 1000);
+        this.totalInterval = setInterval(() => {
+            return this.totalMeetingTime(this.totalMeetingTime() + 1);
+        }, 1000);
         
-        this.nextSpeaker();
+        this.startBufferTime();
+    }
+
+    startBufferTime = () => {
+        if (! this.bufferTime()) {
+            return this.nextSpeaker();
+        }
+        this.isBufferTime(true);
+        let remainingSeconds = parseInt(this.bufferTime()) * 60;
+        this.remainingSeconds(remainingSeconds);
+        if (!this.isTimerRunning()) {
+            this.toggleTimer();
+        }
     }
 
     nextSpeaker = () => {
         if (this.queue().length === 0) {
             this.endMeeting();
             return;
+        }
+
+        if (this.isBufferTime()) {
+            this.isBufferTime(false);
         }
 
         const next = this.queue.shift();
