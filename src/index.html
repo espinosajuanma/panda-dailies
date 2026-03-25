@@ -34,7 +34,12 @@
     <header>
         <nav class="navbar navbar-expand-lg mb-4 shadow-sm" data-bind="css: { 'navbar-dark bg-dark': isDarkMode(), 'navbar-light border-bottom': !isDarkMode() }">
             <div class="container">
-                <a class="navbar-brand fw-bold" href="#">📆 Panda Dailies</a>
+                <div class="d-flex align-items-center">
+                    <a class="navbar-brand fw-bold" href="#">📆 Panda Dailies</a>
+                    <a style="margin-right: 1rem;" class="btn btn-sm btn-outline-light" href="https://panda-tracking.netlify.app" target="_blank">
+                        ⌛ Tracking
+                    </a>
+                </div>
                 <div class="d-flex align-items-center">
                     <div class="form-check form-switch me-3">
                         <input class="form-check-input" type="checkbox" id="themeSwitchNav" data-bind="checked: isDarkMode">
@@ -79,9 +84,8 @@
 
         <!-- DAILY CONFIGURATION -->
         <div data-bind="visible: meetingState() === 'setup'" style="display: none;">
-
             <div class="card shadow-sm mb-4">
-                <div class="card-header"><h5>Configure Daily Stand-up</h5></div>
+                <div class="card-header"><h5>🐼 Configure Daily Stand-up</h5></div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-4 mb-3">
@@ -142,6 +146,17 @@
                         </button>
                     </div>
                     </div>
+            </div>
+
+            <div class="card shadow-s">
+                <div class="card-header"><h5>Instructions</h5></div>
+                <div class="card-body">
+                    <ul>
+                        <li>Select a project, time per person, buffer time, and participants to start the daily stand-up.</li>
+                        <li>The time per person is the amount of time each person will have to speak.</li>
+                        <li>The buffer time is the amount of time to wait before starting the daily.</li>
+                    </ul>
+                </div>
             </div>
         </div>
 
@@ -353,7 +368,7 @@
         <p class="mb-0">
             Made with <i class="bi bi-heart-fill text-danger"></i> by a bored panda
             <span class="mx-2">|</span>
-            <a href="https://github.com/espinosajuanma/solutions-time-tracking" target="_blank" class="text-body-secondary">
+            <a href="https://github.com/espinosajuanma/panda-dailies" target="_blank" class="text-body-secondary">
                 <i class="bi bi-github"></i> Contribute
             </a>
             <span class="mx-2">|</span>
