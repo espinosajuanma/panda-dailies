@@ -15,7 +15,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/knockout/3.5.0/knockout-min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    
+
     <style>
         .animate-flash { animation: flash 1s infinite; }
         @keyframes flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
@@ -104,7 +104,7 @@
                                     <span class="d-none d-sm-inline">-1m</span>
                                     <span class="d-inline d-sm-none">-</span>
                                 </button>
-                                <input id="durationPerPerson" type="text" class="form-control text-center fw-bold" data-bind="value: durationPerPerson, attr: { disabled: $root.loading() }">
+                                <input readonly id="durationPerPerson" type="text" class="form-control text-center fw-bold" data-bind="value: durationPerPerson, attr: { disabled: $root.loading() }">
                                 <button class="btn btn-outline-secondary" type="button" data-bind="click: updateDurationPerPerson.bind($data, 1), attr: { disabled: $root.loading() }">
                                     <span class="d-none d-sm-inline">+1m</span>
                                     <span class="d-inline d-sm-none">+</span>
@@ -119,7 +119,7 @@
                                     <span class="d-none d-sm-inline">-1m</span>
                                     <span class="d-inline d-sm-none">-</span>
                                 </button>
-                                <input id="bufferTime" type="text" class="form-control text-center fw-bold" data-bind="value: bufferTime, attr: { disabled: $root.loading() }">
+                                <input readonly id="bufferTime" type="text" class="form-control text-center fw-bold" data-bind="value: bufferTime, attr: { disabled: $root.loading() }">
                                 <button class="btn btn-outline-secondary" type="button" data-bind="click: updateBufferTime.bind($data, 1), attr: { disabled: $root.loading() }">
                                     <span class="d-none d-sm-inline">+1m</span>
                                     <span class="d-inline d-sm-none">+</span>
