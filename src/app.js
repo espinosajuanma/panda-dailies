@@ -490,7 +490,7 @@ class ViewModel {
                 project: projectId,
                 'assignees.id': userId,
                 type: 'notEquals(release)',
-                status: 'toDo,inProgress,completed',
+                status: 'toDo,inProgress,completed,inReview',
                 _size: 1000
             };
             
@@ -498,7 +498,7 @@ class ViewModel {
             let reviewQuery = {
                 project: projectId,
                 'reviewers.id': userId,
-                status: 'toDo,inProgress,completed',
+                status: 'toDo,inProgress,completed,inReview',
                 type: 'notEquals(release)',
                 _size: 1000
             };
@@ -511,17 +511,17 @@ class ViewModel {
             let tasks = [];
 
             // Map assigned tasks
-            assignedRes.items.forEach(t => {
+            for (let task of assignedRes.items) {
                 tasks.push({
-                    id: t.id,
-                    number: t.number,
-                    title: t.title || t.label,
-                    status: t.status,
-                    type: t.type,
+                    id: task.id,
+                    number: task.number,
+                    title: task.title || t.label,
+                    status: task.status,
+                    type: task.type,
                     relation: 'Assignee',
-                    reviewFeedbacks: t.reviewFeedbacks || []
+                    reviewFeedbacks: task.reviewFeedbacks || [],
                 });
-            });
+            }
 
             // Map review tasks
             let existingIds = new Set(tasks.map(t => t.id));
