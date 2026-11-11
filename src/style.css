@@ -25,6 +25,12 @@ main {
     pointer-events: none;
 }
 
+.duration-adjust-button {
+    min-width: 44px;
+    min-height: 44px;
+    touch-action: manipulation;
+}
+
 .selected-day {
     box-shadow: 0 0 0 3px var(--bs-primary) !important;
 }

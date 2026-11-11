@@ -88,7 +88,7 @@
                 <div class="card-header"><h5>🐼 Configure Daily Stand-up</h5></div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label class="form-label fw-bold">💼 Select Project</label>
                             <select class="form-select" data-bind="
                                 options: projects, 
@@ -97,23 +97,32 @@
                                 optionsCaption: 'Choose...'">
                             </select>
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">⏱️ Time Per Person</label>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label fw-bold" for="totalMeetingDuration">⏱️ Total Meeting Time</label>
                             <div class="input-group">
-                                <button class="btn btn-outline-secondary" type="button" data-bind="click: updateDurationPerPerson.bind($data, -1), attr: { disabled: $root.loading() }">
-                                    <span class="d-none d-sm-inline">-1m</span>
-                                    <span class="d-inline d-sm-none">-</span>
+                                <input id="totalMeetingDuration" name="totalMeetingDurationMinutes" type="number" min="1" step="1" inputmode="numeric" class="form-control text-center fw-bold" data-bind="value: totalMeetingDurationMinutes, valueUpdate: 'input', attr: { disabled: $root.loading() }" aria-describedby="totalMeetingDurationHelp">
+                                <span class="input-group-text">min</span>
+                            </div>
+                            <div id="totalMeetingDurationHelp" class="form-text">Time for participant speaking turns; buffer time is separate.</div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label fw-bold" for="durationPerPerson">⏱️ Time Per Person</label>
+                            <div class="input-group">
+                                <button class="btn btn-outline-secondary duration-adjust-button" type="button" aria-label="Decrease time per person by 15 seconds" title="Decrease by 15 seconds" data-bind="click: updateDurationPerPerson.bind($data, -15), attr: { disabled: $root.loading() }">
+                                    −15s
                                 </button>
-                                <input readonly id="durationPerPerson" type="text" class="form-control text-center fw-bold" data-bind="value: durationPerPerson, attr: { disabled: $root.loading() }">
-                                <button class="btn btn-outline-secondary" type="button" data-bind="click: updateDurationPerPerson.bind($data, 1), attr: { disabled: $root.loading() }">
-                                    <span class="d-none d-sm-inline">+1m</span>
-                                    <span class="d-inline d-sm-none">+</span>
+                                <input readonly id="durationPerPerson" type="text" class="form-control text-center fw-bold" data-bind="value: durationPerPersonDisplay, attr: { disabled: $root.loading() }">
+                                <button class="btn btn-outline-secondary duration-adjust-button" type="button" aria-label="Increase time per person by 15 seconds" title="Increase by 15 seconds" data-bind="click: updateDurationPerPerson.bind($data, 15), attr: { disabled: $root.loading() }">
+                                    +15s
                                 </button>
                             </div>
-                            <div><span class="form-text text-muted">Minutes</span></div>
-                       </div>
-                       <div class="col-md-4 mb-3">
-                        <label class="form-label fw-bold">⌛ Buffer Time</label>
+                            <div class="form-text" data-bind="text: suggestedDurationText, attr: { 'aria-live': 'polite' }"></div>
+                            <button class="btn btn-link btn-sm p-0" type="button" data-bind="visible: durationPerPersonOverridden() && suggestedDurationPerPerson() !== null, click: useSuggestedDuration">
+                                Use suggestion
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                         <label class="form-label fw-bold" for="bufferTime">⌛ Buffer Time</label>
                             <div class="input-group">
                                 <button class="btn btn-outline-secondary" type="button" data-bind="click: updateBufferTime.bind($data, -1), attr: { disabled: $root.loading() }">
                                     <span class="d-none d-sm-inline">-1m</span>
@@ -152,8 +161,10 @@
                 <div class="card-header"><h5>Instructions</h5></div>
                 <div class="card-body">
                     <ul>
-                        <li>Select a project, time per person, buffer time, and participants to start the daily stand-up.</li>
+                        <li>Select a project, total meeting time, buffer time, and participants to start the daily stand-up.</li>
                         <li>The time per person is the amount of time each person will have to speak.</li>
+                        <li>The suggested time per person is the total meeting time divided by selected participants. You can adjust the time per person manually, then use the suggestion to return to the automatic value.</li>
+                        <li>Suggested and manual per-person durations use 15-second intervals.</li>
                         <li>The buffer time is the amount of time to wait before starting the daily.</li>
                     </ul>
                 </div>
