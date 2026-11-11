@@ -136,8 +136,17 @@ class ViewModel {
         // Active Meeting State
         this.queue = ko.observableArray([]);
         this.activeSpeaker = ko.observable(null);
+        this.spokenParticipants = ko.observableArray([]);
+        this.absentParticipants = ko.observableArray([]);
         this.allUserTasks = ko.observableArray([]);
-        this.selectedTaskView = ko.observable('Done'); // 'Done', 'Current', 'Remaining', 'All'
+        this.selectedTaskView = ko.observable('Current'); // 'Done', 'Current', 'Remaining', 'All'
+        this.isLoadingTasks = ko.observable(false);
+        this.taskFetchMessage = ko.observable('');
+        this.expandedTaskId = ko.observable(null);
+        this.taskDetails = ko.observable({});
+        this.taskDetailsLoadingId = ko.observable(null);
+        this.taskDetailsErrors = ko.observable({});
+        this.taskFetchSequence = 0;
         this.isBufferTime = ko.observable(false);
 
         // Notes
@@ -193,40 +202,61 @@ class ViewModel {
             return 'text-danger animate-flash';
         });
 
+        this.meetingRoster = ko.computed(() => MeetingUtils.buildRoster(
+            this.spokenParticipants(),
+            this.activeSpeaker(),
+            this.queue(),
+            this.absentParticipants(),
+        ));
+
+        this.meetingRosterStatusClass = status => ({
+            'Already spoke': 'bg-secondary',
+            'Speaking': 'bg-primary',
+            'Goes next': 'bg-success',
+            'Remaining': 'bg-secondary-subtle text-body',
+            'Absent': 'bg-danger',
+        }[status] || 'bg-secondary');
+
         this.filteredTasks = ko.computed(() => {
-            let view = this.selectedTaskView();
-            let tasks = this.allUserTasks();
             let speaker = this.activeSpeaker();
             let userId = speaker ? speaker.id : null;
-
-            return tasks.filter(t => {
-                if (view === 'All') {
-                    return true;
-                } else if (view === 'Done') {
-                    if (t.relation === 'Assignee' && t.status === 'completed') return true;
-                    if (t.relation === 'Reviewer') {
-                        let fb = t.reviewFeedbacks.find(f => f.reviewer.id === userId);
-                        let fbStatus = fb ? fb.feedback : null;
-                        return fbStatus === 'approved' || fbStatus === 'changesRequested';
-                    }
-                } else if (view === 'Current') {
-                    return t.relation === 'Assignee' && t.status === 'inProgress';
-                } else if (view === 'Remaining') {
-                    if (t.relation === 'Assignee' && t.status === 'toDo') {
-                        return true;
-                    }
-                    if (t.relation === 'Reviewer') {
-                        if (t.status !== 'inReview') {
-                            return false;
-                        }
-                        let fb = t.reviewFeedbacks.find(f => f.reviewer.id === userId);
-                        let fbStatus = fb ? fb.feedback : 'pending';
-                        return fbStatus === 'pending' || !fbStatus;
-                    }
-                }
-                return false;
-            });
+            return TaskUtils.filterAndSortTasks(this.allUserTasks(), this.selectedTaskView(), userId);
         });
+
+        this.taskStatusLabel = status => {
+            const normalized = String(status || '').replace(/([a-z])([A-Z])/g, '$1 $2');
+            return normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : 'Status unknown';
+        };
+
+        this.taskStatusClass = status => {
+            const normalized = String(status || '').toLowerCase().replace(/[\s_-]/g, '');
+            if (normalized === 'completed') return 'bg-success';
+            if (normalized === 'inreview') return 'bg-warning text-dark';
+            if (normalized === 'inprogress') return 'bg-primary';
+            return 'bg-secondary';
+        };
+
+        this.taskReviewLabel = task => TaskUtils.reviewerFeedbackLabel(task, this.activeSpeaker()?.id);
+
+        this.taskReviewClass = task => {
+            const label = this.taskReviewLabel(task);
+            if (label === 'Approved') return 'bg-success';
+            if (label === 'Changes requested') return 'bg-danger';
+            return 'bg-warning text-dark';
+        };
+
+        this.taskDetailsDomId = id => `task-details-${String(id).replace(/[^A-Za-z0-9_-]/g, '-')}`;
+
+        this.taskDetailsFor = id => {
+            const key = String(id);
+            const cached = this.taskDetails()[key];
+            if (cached) return cached;
+            const task = this.allUserTasks().find(item => String(item.id) === key);
+            return TaskUtils.extractTaskDetails(null, task || {});
+        };
+
+        this.taskDetailsErrorFor = id => this.taskDetailsErrors()[String(id)] || '';
+        this.renderTaskHtml = value => TaskUtils.sanitizeTaskHtml(value, window.DOMPurify);
 
         this.checkSession();
     }
@@ -417,6 +447,9 @@ class ViewModel {
         }
         
         this.queue(array);
+        this.spokenParticipants([]);
+        this.absentParticipants([]);
+        this.activeSpeaker(null);
         this.parkingLot([]);
         this.actionItems([]);
         this.blockers([]);
@@ -447,7 +480,13 @@ class ViewModel {
     }
 
     nextSpeaker = () => {
+        const currentSpeaker = this.activeSpeaker();
+        if (currentSpeaker && !this.isBufferTime()) {
+            this.recordSpokenParticipant(currentSpeaker);
+        }
+
         if (this.queue().length === 0) {
+            this.activeSpeaker(null);
             this.endMeeting();
             return;
         }
@@ -458,6 +497,7 @@ class ViewModel {
 
         const next = this.queue.shift();
         this.activeSpeaker(next);
+        this.expandedTaskId(null);
         this.fetchTasksForUser(next.id);
         
         let remainingSeconds = parseInt(this.durationPerPerson()) * 60;
@@ -480,8 +520,12 @@ class ViewModel {
     }
 
     fetchTasksForUser = async (userId) => {
+        const requestSequence = ++this.taskFetchSequence;
         this.allUserTasks([]);
-        this.selectedTaskView('Done'); // Reset to Done tab for the next person
+        this.isLoadingTasks(true);
+        this.taskFetchMessage('');
+        this.expandedTaskId(null);
+        this.selectedTaskView('Current'); // Reset to Current tab for the next person
         
         try {
             const projectId = this.selectedProject().id;
@@ -503,59 +547,148 @@ class ViewModel {
                 _size: 1000
             };
 
-            let [assignedRes, reviewRes] = await Promise.all([
-                this.slingr.get('/data/dev.tasks', assignedQuery).catch(() => ({ items: [] })),
-                this.slingr.get('/data/dev.tasks', reviewQuery).catch(() => ({ items: [] }))
+            let [assignedResult, reviewResult] = await Promise.all([
+                this.slingr.get('/data/dev.tasks', assignedQuery)
+                    .then(result => ({ result, error: null }))
+                    .catch(error => ({ result: { items: [] }, error })),
+                this.slingr.get('/data/dev.tasks', reviewQuery)
+                    .then(result => ({ result, error: null }))
+                    .catch(error => ({ result: { items: [] }, error }))
             ]);
 
-            let tasks = [];
+            if (requestSequence !== this.taskFetchSequence) return;
 
-            // Map assigned tasks
-            for (let task of assignedRes.items) {
-                tasks.push({
-                    id: task.id,
-                    number: task.number,
-                    title: task.title || t.label,
-                    status: task.status,
-                    type: task.type,
-                    relation: 'Assignee',
-                    reviewFeedbacks: task.reviewFeedbacks || [],
-                });
+            const assignedTasks = assignedResult.result.items || [];
+            const reviewedTasks = reviewResult.result.items || [];
+            this.allUserTasks(TaskUtils.mergeTasks(assignedTasks, reviewedTasks));
+
+            const failures = [assignedResult.error, reviewResult.error].filter(Boolean);
+            if (failures.length === 2) {
+                this.taskFetchMessage('Tasks could not be loaded. Check your connection, then refresh.');
+            } else if (failures.length === 1) {
+                this.taskFetchMessage('Some tasks could not be loaded, so this list may be incomplete. Refresh to try again.');
             }
-
-            // Map review tasks
-            let existingIds = new Set(tasks.map(t => t.id));
-            reviewRes.items.forEach(t => {
-                if (!existingIds.has(t.id)) {
-                    tasks.push({
-                        id: t.id,
-                        number: t.number,
-                        title: t.title || t.label,
-                        status: t.status,
-                        type: t.type,
-                        relation: 'Reviewer',
-                        reviewFeedbacks: t.reviewFeedbacks || []
-                    });
-                }
-            });
-
-            this.allUserTasks(tasks);
         } catch (e) {
             console.error("Error fetching tasks for user:", e);
+            if (requestSequence === this.taskFetchSequence) {
+                this.taskFetchMessage('Tasks could not be loaded. Check your connection, then refresh.');
+            }
+        } finally {
+            if (requestSequence === this.taskFetchSequence) this.isLoadingTasks(false);
+        }
+    }
+
+    recordSpokenParticipant = (participant) => {
+        const participantId = String(participant.id);
+        const remainingSpoken = this.spokenParticipants()
+            .filter(previous => String(previous.id) !== participantId);
+        this.spokenParticipants([...remainingSpoken, participant]);
+        this.absentParticipants(this.absentParticipants()
+            .filter(previous => String(previous.id) !== participantId));
+    }
+
+    navigateToParticipant = (rosterEntry) => {
+        if (!rosterEntry || !rosterEntry.canNavigate) return;
+
+        const participant = rosterEntry.participant;
+        const currentSpeaker = this.activeSpeaker();
+        if (currentSpeaker && String(currentSpeaker.id) === String(participant.id)) return;
+
+        this.queue(MeetingUtils.queueInterruptedSpeaker(this.queue(), currentSpeaker, participant));
+        this.absentParticipants(this.absentParticipants()
+            .filter(absent => String(absent.id) !== String(participant.id)));
+
+        this.activeSpeaker(participant);
+        this.isBufferTime(false);
+        this.expandedTaskId(null);
+        this.fetchTasksForUser(participant.id);
+        this.remainingSeconds(parseInt(this.durationPerPerson(), 10) * 60);
+        if (!this.isTimerRunning()) this.toggleTimer();
+    }
+
+    handleMeetingRosterKeydown = (rosterEntry, event) => {
+        if (!rosterEntry.canNavigate) return true;
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            this.navigateToParticipant(rosterEntry);
+            return false;
+        }
+        return true;
+    }
+
+    refreshTasks = async () => {
+        const speaker = this.activeSpeaker();
+        if (!speaker) return;
+        const selectedView = this.selectedTaskView();
+        const expandedTaskId = this.expandedTaskId();
+        await this.fetchTasksForUser(speaker.id);
+        this.selectedTaskView(selectedView);
+
+        if (expandedTaskId) {
+            const task = this.allUserTasks().find(item => String(item.id) === expandedTaskId);
+            if (task) {
+                const details = { ...this.taskDetails() };
+                delete details[expandedTaskId];
+                this.taskDetails(details);
+                const errors = { ...this.taskDetailsErrors() };
+                delete errors[expandedTaskId];
+                this.taskDetailsErrors(errors);
+                this.expandedTaskId(expandedTaskId);
+                await this.loadTaskDetails(task);
+            }
+        }
+    }
+
+    toggleTaskDetails = async (task) => {
+        const taskId = String(task.id);
+        if (this.expandedTaskId() === taskId) {
+            this.expandedTaskId(null);
+            return;
+        }
+
+        this.expandedTaskId(taskId);
+        if (!Object.prototype.hasOwnProperty.call(this.taskDetails(), taskId)) {
+            await this.loadTaskDetails(task);
+        }
+    }
+
+    loadTaskDetails = async (task) => {
+        const taskId = String(task.id);
+        this.taskDetailsLoadingId(taskId);
+        try {
+            const response = await this.slingr.get(`/data/dev.tasks/${encodeURIComponent(taskId)}`);
+            const details = TaskUtils.extractTaskDetails(response, task);
+            this.taskDetails({ ...this.taskDetails(), [taskId]: details });
+            const errors = { ...this.taskDetailsErrors() };
+            delete errors[taskId];
+            this.taskDetailsErrors(errors);
+        } catch (error) {
+            console.error(`Error fetching details for task ${taskId}:`, error);
+            const errors = { ...this.taskDetailsErrors(), [taskId]: 'Task details could not be loaded. Showing any details available in the task list.' };
+            this.taskDetailsErrors(errors);
+        } finally {
+            if (this.taskDetailsLoadingId() === taskId) this.taskDetailsLoadingId(null);
         }
     }
 
     // --- EDGE CASES ---
     skipSpeaker = () => {
         if (this.activeSpeaker()) {
-            this.queue.push(this.activeSpeaker());
+            const skipped = this.activeSpeaker();
+            this.queue.push(skipped);
+            this.activeSpeaker(null);
             this.nextSpeaker();
         }
     }
 
     markAbsent = () => {
         if (this.activeSpeaker()) {
-            this.addNoteToNotes(`${this.activeSpeaker().name} was absent.`);
+            const absent = this.activeSpeaker();
+            const absentParticipants = this.absentParticipants()
+                .filter(participant => String(participant.id) !== String(absent.id));
+            this.absentParticipants([...absentParticipants, absent]);
+            this.addNoteToNotes(`${absent.name} was absent.`);
+            this.activeSpeaker(null);
             this.nextSpeaker();
         }
     }

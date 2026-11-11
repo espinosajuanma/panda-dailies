@@ -2,6 +2,10 @@
     --bs-body-bg: rgb(15 23 42);
 }
 
+[data-bs-theme="dark"] body {
+    color-scheme: dark;
+}
+
 main {
     min-height: calc(100vh - 120px); /* Adjust based on header/footer height */
 }
@@ -88,4 +92,214 @@ main {
 
 [data-bs-theme="dark"] .select2-selection__rendered {
     color: var(--bs-body-color) !important;
+}
+
+.task-view-switcher {
+    flex-wrap: wrap;
+}
+
+.task-header-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.task-refresh {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    line-height: 1;
+    flex: 0 0 auto;
+}
+
+.task-view-switcher .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.125rem;
+    padding: 0.3rem 0.65rem;
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+.task-list-item {
+    padding: 0;
+}
+
+.task-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+}
+
+.task-main {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.task-title-line {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    min-width: 0;
+}
+
+.task-number {
+    flex: 0 0 auto;
+    color: var(--bs-body-color);
+    border-color: var(--bs-border-color) !important;
+}
+
+.task-title,
+.task-detail-copy {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.task-metadata,
+.task-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.45rem;
+}
+
+.task-actions {
+    justify-content: flex-end;
+    flex: 0 0 auto;
+    margin-top: 0;
+}
+
+.task-roles {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.task-type {
+    color: var(--bs-secondary-color);
+    background: var(--bs-secondary-bg);
+    text-transform: capitalize;
+}
+
+.task-status {
+    text-transform: capitalize;
+}
+
+.task-details-toggle {
+    min-height: 2.75rem;
+    min-width: 5.5rem;
+}
+
+.task-details-toggle:focus-visible,
+.task-refresh:focus-visible,
+.task-view-switcher .btn:focus-visible {
+    outline: 3px solid var(--bs-primary);
+    outline-offset: 2px;
+    z-index: 1;
+}
+
+.task-details {
+    margin: 0 1rem 1rem;
+    padding: 1rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    background: var(--bs-tertiary-bg);
+}
+
+.task-detail-section + .task-detail-section {
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.task-detail-section h6 {
+    margin-bottom: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--bs-secondary-color);
+}
+
+.task-detail-copy {
+    margin-bottom: 0;
+}
+
+.task-rich-content > :last-child {
+    margin-bottom: 0;
+}
+
+.meeting-roster-table-wrap {
+    padding: 0.25rem 0.75rem 0.5rem;
+}
+
+.meeting-roster-table th:last-child,
+.meeting-roster-table td:last-child {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.meeting-roster-navigable {
+    cursor: pointer;
+}
+
+.meeting-roster-navigable:hover {
+    background: var(--bs-primary-bg-subtle);
+}
+
+.meeting-roster-navigable:focus-visible {
+    outline: 3px solid var(--bs-primary);
+    outline-offset: -3px;
+}
+
+.meeting-roster-speaking {
+    background: var(--bs-info-bg-subtle);
+}
+
+.meeting-roster-next {
+    background: var(--bs-success-bg-subtle);
+}
+
+.task-notes {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
+.task-notes li + li {
+    margin-top: 0.45rem;
+}
+
+@media (max-width: 575.98px) {
+    .task-view-switcher .btn {
+        min-height: 2.75rem;
+    }
+
+    .task-refresh {
+        width: 2.75rem;
+        height: 2.75rem;
+    }
+
+    .task-row {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.7rem;
+    }
+
+    .task-actions {
+        justify-content: flex-start;
+        width: 100%;
+    }
+
+    .task-details {
+        margin-right: 0.75rem;
+        margin-left: 0.75rem;
+    }
 }
