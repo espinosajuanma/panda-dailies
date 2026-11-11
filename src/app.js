@@ -129,7 +129,7 @@ class ViewModel {
             const duration = Number(this.durationPerPerson());
             return Number.isFinite(duration) ? this.formatDuration(duration) : '';
         });
-        this.totalMeetingDurationMinutes = ko.observable('');
+        this.totalMeetingDurationMinutes = ko.observable(15);
         this.durationPerPersonOverridden = ko.observable(false);
         this.suggestedDurationPerPerson = ko.computed(() => {
             const totalMinutes = Number(this.totalMeetingDurationMinutes());
