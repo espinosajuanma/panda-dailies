@@ -124,7 +124,39 @@ class ViewModel {
         this.selectedProject = ko.observable(null);
         this.availableParticipants = ko.observableArray([]);
         this.selectedParticipants = ko.observableArray([]);
-        this.durationPerPerson = ko.observable(2);
+        this.durationPerPerson = ko.observable(120);
+        this.durationPerPersonDisplay = ko.computed(() => {
+            const duration = Number(this.durationPerPerson());
+            return Number.isFinite(duration) ? this.formatDuration(duration) : '';
+        });
+        this.totalMeetingDurationMinutes = ko.observable(15);
+        this.durationPerPersonOverridden = ko.observable(false);
+        this.suggestedDurationPerPerson = ko.computed(() => {
+            const totalMinutes = Number(this.totalMeetingDurationMinutes());
+            const participantCount = this.selectedParticipants().length;
+
+            if (!Number.isFinite(totalMinutes) || totalMinutes <= 0 || participantCount === 0) {
+                return null;
+            }
+
+            const exactSecondsPerPerson = totalMinutes * 60 / participantCount;
+            return Math.floor(exactSecondsPerPerson / 15) * 15;
+        });
+        this.suggestedDurationText = ko.computed(() => {
+            const suggestedSeconds = this.suggestedDurationPerPerson();
+            if (suggestedSeconds === null) {
+                return Number(this.totalMeetingDurationMinutes()) > 0
+                    ? 'Select at least one participant to see the suggested time.'
+                    : 'Enter a total meeting time to get a per-person suggestion.';
+            }
+
+            return `Suggested: ${this.formatDuration(suggestedSeconds)} per person`;
+        });
+        this.suggestedDurationPerPerson.subscribe(suggestedSeconds => {
+            if (suggestedSeconds !== null && !this.durationPerPersonOverridden()) {
+                this.durationPerPerson(suggestedSeconds);
+            }
+        });
         this.bufferTime = ko.observable(2);
         
         // Releases
@@ -229,6 +261,13 @@ class ViewModel {
         });
 
         this.checkSession();
+    }
+
+    formatDuration(seconds) {
+        const totalSeconds = Math.max(0, Math.round(Number(seconds) || 0));
+        const minutes = Math.floor(totalSeconds / 60);
+        const remainingSeconds = totalSeconds % 60;
+        return `${minutes}m${String(remainingSeconds).padStart(2, '0')}s`;
     }
 
     // --- AUTH ---
@@ -400,10 +439,19 @@ class ViewModel {
     }
 
     updateDurationPerPerson = (amount) => {
-        let current = this.durationPerPerson();
+        let current = Number(this.durationPerPerson());
         let newValue = current + amount;
-        if (newValue >= 1) {
-            this.durationPerPerson(current + amount);
+        if (newValue >= 15) {
+            this.durationPerPersonOverridden(true);
+            this.durationPerPerson(newValue);
+        }
+    }
+
+    useSuggestedDuration = () => {
+        const suggestion = this.suggestedDurationPerPerson();
+        if (suggestion !== null) {
+            this.durationPerPersonOverridden(false);
+            this.durationPerPerson(suggestion);
         }
     }
 
@@ -460,7 +508,7 @@ class ViewModel {
         this.activeSpeaker(next);
         this.fetchTasksForUser(next.id);
         
-        let remainingSeconds = parseInt(this.durationPerPerson()) * 60;
+        let remainingSeconds = Math.round(Number(this.durationPerPerson()));
         this.remainingSeconds(remainingSeconds);
         if (!this.isTimerRunning()) {
             this.toggleTimer();
